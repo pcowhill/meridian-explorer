@@ -72,9 +72,9 @@ import { computeEmphasis, lensVisibleCount } from './emphasis';
 import { boundsOf, type Rect } from './layout';
 import { navigate, type Direction } from './nav';
 import { Sidebar } from './Sidebar';
-import { useAtlasLocal } from './store';
+import { requestCamera, useAtlasLocal } from './store';
 import { prefersReducedMotion, useScene, useTweenedRects, type Scene } from './useScene';
-import { ensureVisible, fitRect, MAX_ZOOM, MIN_ZOOM, type Viewport } from './viewport';
+import { afterExpand, ensureVisible, fitRect, fitZoom, frameSelection, MAX_ZOOM, MIN_ZOOM, placeRect, READABLE_ZOOM, type Viewport } from './viewport';
 import { isContainer } from './visibility';
 import './atlas.css';
 
@@ -178,63 +178,89 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
   const canvas = useMemo(() => ({ width, height }), [width, height]);
   const go = useCallback((vp: Viewport | null, ms = 320) => vp && rf.setViewport(vp, { duration: duration(ms) }), [rf]);
   const fitAll = useCallback(
-    (ms = 320) => {
+    (ms = 280) => {
       const b = boundsOf(scene.rects.values());
-      if (b && width && height) go(fitRect(b, canvas, { maxZoom: 1.15 }), ms);
+      if (b && width && height) go(placeRect(b, Math.min(1.15, fitZoom(b, canvas)), canvas), ms);
     },
     [scene.rects, width, height, canvas, go],
   );
   const zoomToSelection = useCallback(() => {
     const r = scene.selectedOnMap ? scene.rects.get(scene.selectedOnMap) : undefined;
-    if (r && width) go(fitRect(r, canvas, { maxZoom: 1.6, padding: 0.12 }));
+    if (r && width) go(placeRect(r, Math.max(MIN_ZOOM, Math.min(1.6, fitZoom(r, canvas) * 0.85)), canvas));
   }, [scene.selectedOnMap, scene.rects, width, canvas, go]);
 
-  // First fit once the canvas has a size; refit when the frame changes (focus / isolation).
+  /** Frame a selection that arrived from elsewhere: its surroundings, at a readable zoom. */
+  const frameArrival = useCallback(
+    (id: string, ms = 260) => {
+      const node = scene.tree.nodes.get(id);
+      const r = scene.rects.get(id);
+      if (!node || !r) return;
+      const isRoot = id === scene.tree.root;
+      const open = node.expanded && node.children.length > 0;
+      const parentRect = node.parent ? scene.rects.get(node.parent) : undefined;
+      const frame = open || !parentRect ? r : parentRect;
+      // The whole map (the root) may be fitted below the readable zoom; anything else may not.
+      const minZoom = isRoot || frame === scene.rects.get(scene.tree.root) ? Math.min(READABLE_ZOOM, fitZoom(frame, canvas)) : READABLE_ZOOM;
+      go(frameSelection(r, frame, canvas, { minZoom: Math.max(MIN_ZOOM, minZoom) }), ms);
+    },
+    [scene.tree, scene.rects, canvas, go],
+  );
+
+  // Camera policy: serve the selection. Fit everything only on explicit request (0, Home, Reset).
   const fitted = useRef(false);
   const frameKey = `${scene.focus ?? ''}|${scene.isolating}`;
   const lastFrame = useRef(frameKey);
   const lastSel = useRef<string | null>(scene.selectedOnMap);
-  const lastSelRect = useRef<Rect | undefined>(undefined);
+  const handled = useRef(0);
+  const intent = useAtlasLocal((s) => s.camera);
   useEffect(() => {
     if (!width || !height || scene.rects.size === 0) return;
+    const sel = scene.selectedOnMap;
     if (!fitted.current) {
       fitted.current = true;
       lastFrame.current = frameKey;
-      fitAll(0);
-      // A deep link that selects something: make sure it is in view after the first fit.
-      const sel = scene.selectedOnMap ? scene.rects.get(scene.selectedOnMap) : undefined;
-      lastSel.current = scene.selectedOnMap;
-      lastSelRect.current = sel;
-      if (sel) {
-        const b = boundsOf(scene.rects.values())!;
-        const vp = fitRect(b, canvas, { maxZoom: 1.15 });
-        const next = ensureVisible(sel, vp, canvas);
-        if (next) go(next, 0);
-      }
+      lastSel.current = sel;
+      handled.current = intent?.seq ?? 0;
+      if (sel && sel !== scene.tree.root) frameArrival(sel, 0);
+      else fitAll(0);
       return;
     }
     if (lastFrame.current !== frameKey) {
+      const entering = !!scene.focus || scene.isolating;
       lastFrame.current = frameKey;
-      lastSel.current = scene.selectedOnMap;
-      lastSelRect.current = scene.selectedOnMap ? scene.rects.get(scene.selectedOnMap) : undefined;
-      fitAll();
+      lastSel.current = sel;
+      handled.current = intent?.seq ?? handled.current;
+      if (entering || !sel) fitAll();
+      else frameArrival(sel);
       return;
     }
-    // Follow the selection: frame a container that was just opened, otherwise just keep it in view.
-    const id = scene.selectedOnMap;
-    const r = id ? scene.rects.get(id) : undefined;
-    const prevRect = lastSelRect.current;
-    const changed = id !== lastSel.current;
-    const resized = !!r && !!prevRect && (r.w !== prevRect.w || r.h !== prevRect.h);
-    lastSel.current = id;
-    lastSelRect.current = r;
-    if (!id || !r || (!changed && !resized)) return;
-    const vp = rf.getViewport();
-    const node = scene.tree.nodes.get(id);
-    if (node?.expanded && (changed || resized) && node.children.length > 0 && (changed || !ensureVisibleNoop(r, vp, canvas))) {
-      go(fitRect(r, canvas, { maxZoom: Math.max(1, vp.zoom), padding: 0.06 }));
-    } else go(ensureVisible(r, vp, canvas));
-  }, [scene.rects, scene.selectedOnMap, scene.tree, frameKey, width, height, canvas, fitAll, go, rf]);
+    if (intent && intent.seq !== handled.current) {
+      if (intent.kind === 'expand' && intent.id) {
+        const n = scene.tree.nodes.get(intent.id);
+        if (n && !n.expanded) return; // wait for the expansion to reach the layout
+        handled.current = intent.seq;
+        lastSel.current = sel;
+        const r = scene.rects.get(intent.id);
+        if (!r) return;
+        if (intent.id === scene.tree.root) go(placeRect(r, Math.min(1.1, fitZoom(r, canvas)), canvas));
+        else go(afterExpand(r, rf.getViewport(), canvas));
+        return;
+      }
+      handled.current = intent.seq;
+      lastSel.current = sel;
+      if (intent.kind === 'fit') {
+        fitAll();
+        return;
+      }
+      const r = intent.id ? scene.rects.get(intent.id) : undefined;
+      if (r) go(ensureVisible(r, rf.getViewport(), canvas));
+      return;
+    }
+    if (sel !== lastSel.current) {
+      lastSel.current = sel;
+      if (sel) frameArrival(sel);
+    }
+  }, [scene.rects, scene.selectedOnMap, scene.tree, scene.focus, scene.isolating, frameKey, intent, width, height, canvas, fitAll, frameArrival, go, rf]);
 
   // A new feature lens frames the parts that implement it.
   const lensKey = useApp((s) => s.atlas.lens);
@@ -326,7 +352,9 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
   };
   const arrow = (dir: Direction) => {
     const next = navigate(scene.tree, scene.rects, selOnMap, dir);
-    if (next) useApp.getState().selectEntity(next);
+    if (!next) return;
+    requestCamera('select', next);
+    useApp.getState().selectEntity(next);
   };
 
   useHotkeys([
@@ -571,11 +599,6 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
       )}
     </div>
   );
-}
-
-/** Pure check wrapper so the effect reads clearly. */
-function ensureVisibleNoop(r: Rect, vp: Viewport, canvas: { width: number; height: number }): boolean {
-  return ensureVisible(r, vp, canvas) === null;
 }
 
 // ---------------------------------------------------------------------------

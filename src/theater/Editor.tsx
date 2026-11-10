@@ -57,7 +57,7 @@ export interface EditorApi {
 }
 
 export function Outline({ api }: { api: EditorApi }) {
-  const { scenario, variant, steps, step, dirty } = useTheater();
+  const { scenario, variant, steps, step, dirty, saved } = useTheater();
   const detail = useApp((s) => s.detail);
   const model = useModel();
   const all = useMemo(() => variantSteps(scenario, variant), [scenario, variant]);
@@ -80,7 +80,7 @@ export function Outline({ api }: { api: EditorApi }) {
             {dirty ? 'Unsaved changes' : 'Saved'}
           </span>
           <span className="flex-1" />
-          <IconButton label="Discard unsaved changes" size="sm" disabled={!dirty} onClick={api.discard}>
+          <IconButton label={saved ? "Discard unsaved changes" : "Discard this unsaved copy"} size="sm" disabled={!dirty} onClick={api.discard}>
             <Undo2 size={14} />
           </IconButton>
           <IconButton label="Export to a JSON file" size="sm" onClick={api.exportJson}>

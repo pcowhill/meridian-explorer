@@ -84,9 +84,24 @@ describe('Scenario Theater', () => {
     act(() => {
       fireEvent.click(screen.getByLabelText('Edit scenario'));
     });
-    const saved = useWorkspace.getState().customScenarios;
-    expect(saved).toHaveLength(1);
-    expect(useApp.getState().theater.scenarioId).toBe(saved[0].id);
+    // The copy is an unsaved draft until Save.
+    expect(useWorkspace.getState().customScenarios).toHaveLength(0);
+    const drafts = Object.values(useDrafts.getState().drafts);
+    expect(drafts).toHaveLength(1);
+    expect(useApp.getState().theater.scenarioId).toBe(drafts[0].id);
+    // Customising the original again reuses that copy.
+    act(() => {
+      useApp.setState((s) => ({ theater: { ...s.theater, scenarioId: 'trace:ep:GET /api/accounts' } }));
+    });
+    act(() => {
+      fireEvent.click(screen.getByLabelText('Edit scenario'));
+    });
+    expect(Object.values(useDrafts.getState().drafts)).toHaveLength(1);
+    expect(useApp.getState().theater.scenarioId).toBe(drafts[0].id);
+    act(() => {
+      fireEvent.click(screen.getByLabelText('Save scenario'));
+    });
+    expect(useWorkspace.getState().customScenarios.map((s) => s.id)).toEqual([drafts[0].id]);
   });
 
   it('shows workflows involving the selected entity', () => {

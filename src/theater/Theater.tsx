@@ -70,7 +70,9 @@ import { useDrafts } from './drafts';
 import {
   blankScenario,
   clampIndex,
+  copiedFrom,
   customizeCopy,
+  findCopy,
   effectiveVariant,
   followStep,
   isTraceId,
@@ -249,14 +251,23 @@ export default function Theater() {
 
   const startEditingCopy = useCallback(
     (src: Scenario) => {
+      // Reuse the copy made earlier (saved or still unsaved) instead of piling up new ones.
+      const existing = findCopy(src.id, [...Object.values(useDrafts.getState().drafts), ...custom]);
+      if (existing) {
+        theaterOpen(existing.id, theater.variant, index);
+        window.setTimeout(() => setEditing(true), 0);
+        toast(`Editing your copy “${existing.title}”`, 'ok');
+        return;
+      }
+      // A new copy lives only as a draft until it is saved.
       const copy = customizeCopy(src, source === 'custom' || source === 'draft');
-      saveCustom(copy);
+      setDraft(copy);
       theaterOpen(copy.id, theater.variant, index);
       // The id change resets edit mode; re-enable it on the next tick.
       window.setTimeout(() => setEditing(true), 0);
-      toast(`Editing your copy “${copy.title}” — the original is unchanged`, 'ok');
+      toast(`Editing a copy — the original is unchanged. Save to keep it.`, 'ok');
     },
-    [saveCustom, theaterOpen, theater.variant, index, toast, source],
+    [custom, setDraft, theaterOpen, theater.variant, index, toast, source],
   );
 
   const toggleEdit = useCallback(() => {
@@ -330,7 +341,16 @@ export default function Theater() {
         }
       },
       save,
-      discard: () => scenario && clearDraft(scenario.id),
+      discard: () => {
+        if (!scenario) return;
+        clearDraft(scenario.id);
+        // A copy that was never saved disappears: go back to its original.
+        if (!custom.some((c) => c.id === scenario.id)) {
+          setEditing(false);
+          const from = copiedFrom(scenario);
+          useApp.setState((s) => ({ theater: { ...s.theater, scenarioId: from ?? null, stepIndex: 0 } }));
+        }
+      },
       exportJson,
       remove: () => {
         if (!scenario) return;
@@ -342,7 +362,7 @@ export default function Theater() {
       },
       done: () => setEditing(false),
     }),
-    [scenario, source, setDraft, detail, variant, theaterSetStep, save, clearDraft, exportJson, deleteCustom, toast],
+    [scenario, source, setDraft, detail, variant, theaterSetStep, save, clearDraft, exportJson, deleteCustom, toast, custom],
   );
 
   // Warn before closing the tab with unsaved drafts.

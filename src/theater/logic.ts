@@ -456,6 +456,16 @@ const slug = (s: string) =>
     .replace(/^-|-$/g, '')
     .slice(0, 32) || 'scenario';
 
+export const COPY_TAG = 'copy-of:';
+
+/** The user's existing editable copy of a scenario (saved or still a draft), if any. */
+export function findCopy(sourceId: string, candidates: Scenario[]): Scenario | undefined {
+  return candidates.find((s) => s.tags?.includes(`${COPY_TAG}${sourceId}`));
+}
+
+/** The scenario a copy was made from. */
+export const copiedFrom = (s: Scenario): string | undefined => s.tags?.find((t) => t.startsWith(COPY_TAG))?.slice(COPY_TAG.length);
+
 /** An editable copy of any scenario (built-in, assembled or custom). */
 export function customizeCopy(source: Scenario, alreadyMine = !!source.custom): Scenario {
   const copy = structuredClone(source);
@@ -468,6 +478,7 @@ export function customizeCopy(source: Scenario, alreadyMine = !!source.custom): 
     custom: true,
     confidence: source.confidence === 'hypothetical' ? 'hypothetical' : copy.confidence,
     related: copy.related ?? [],
+    tags: [...(copy.tags ?? []).filter((t) => !t.startsWith(COPY_TAG)), `${COPY_TAG}${source.id}`],
   };
 }
 
