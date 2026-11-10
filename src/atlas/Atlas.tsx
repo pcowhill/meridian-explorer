@@ -550,29 +550,28 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
 
       <div className="pointer-events-none absolute left-3 right-[150px] top-3 z-10 flex flex-col items-start gap-2">
         <Breadcrumbs model={model} scene={scene} />
-      {selOnMap && selNode && selEntity && !selNode.stub && (
-        <SelectionToolbar
-          name={selEntity.name}
-          kind={selEntity.kind}
-          color={entityColor(selEntity)}
-          container={selNode.isContainer}
-          expanded={selNode.expanded}
-          isFocusRoot={selOnMap === scene.focus}
-          canFocus={selOnMap !== model.root && (selNode.isContainer || (!!model.parentOf(selOnMap) && model.parentOf(selOnMap)!.id !== model.root))}
-          highlight={highlight}
-          spotlight={spotlight}
-          isolate={scene.isolating}
-          workflows={relatedWorkflows.map((s) => ({
-            id: s.id,
-            title: s.title,
-          }))}
-          onToggle={() => toggleExpand(model, selOnMap)}
-          onFocus={doFocus}
-          onUp={upOneLevel}
-          onStudio={addToStudio}
-        />
-      )}
-
+        {selOnMap && selNode && selEntity && !selNode.stub && (
+          <SelectionToolbar
+            name={selEntity.name}
+            kind={selEntity.kind}
+            color={entityColor(selEntity)}
+            container={selNode.isContainer}
+            expanded={selNode.expanded}
+            isFocusRoot={selOnMap === scene.focus}
+            canFocus={selOnMap !== model.root && (selNode.isContainer || (!!model.parentOf(selOnMap) && model.parentOf(selOnMap)!.id !== model.root))}
+            highlight={highlight}
+            spotlight={spotlight}
+            isolate={scene.isolating}
+            workflows={relatedWorkflows.map((s) => ({
+              id: s.id,
+              title: s.title,
+            }))}
+            onToggle={() => toggleExpand(model, selOnMap)}
+            onFocus={doFocus}
+            onUp={upOneLevel}
+            onStudio={addToStudio}
+          />
+        )}
       </div>
 
       <div className="presenter-hide absolute right-3 top-3 z-10 flex items-center gap-1.5">

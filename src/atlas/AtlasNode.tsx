@@ -168,7 +168,12 @@ function AtlasNodeImpl({ data }: NodeProps<AtlasFlowNode>) {
   // ---- Stub (outside thing, focus mode) --------------------------------------
   if (data.stub) {
     return (
-      <div {...common} data-testid="atlas-stub" className={cn('atlas-node atlas-stub tint', hypo && 'hypothetical', fxClass)} title={`Outside the focus: ${data.name}. Click to leave focus and show it.`}>
+      <div
+        {...common}
+        data-testid="atlas-stub"
+        className={cn('atlas-node atlas-stub tint', hypo && 'hypothetical', fxClass)}
+        title={`Outside the focus: ${data.name}. Click to leave focus and show it.`}
+      >
         <Handles />
         <KindIcon kind={data.kind} size={14} className="shrink-0" />
         <div className="min-w-0 flex-1">
