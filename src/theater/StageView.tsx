@@ -14,7 +14,7 @@ import { entityColor, KindIcon } from '@/ui/kinds';
 import { KIND_LABEL } from '@/model';
 import { STEP_COLOR } from '@/viewers/SequenceDiagram';
 import { useTheater } from './context';
-import { breakable, edgeGeometry, isHypoStep, stageLayout } from './logic';
+import { breakable, edgeGeometry, isHypoStep, placeLabel, stageLayout } from './logic';
 import { useElementSize } from './useElementSize';
 
 const PAD = 48;
@@ -26,7 +26,8 @@ export function StageView() {
   const box = useRef<HTMLDivElement>(null);
   const size = useElementSize(box);
   // Quantised so tiny resizes do not re-flow the stage.
-  const aspect = size.width && size.height ? Math.round((size.width / size.height) * 4) / 4 : 1.6;
+  const vw = size.width ? Math.round((size.width - PAD * 2 - 16) / 50) * 50 : 1200;
+  const vh = size.height ? Math.round((size.height - PAD * 2 - 16) / 50) * 50 : 700;
 
   const layout = useMemo(
     () =>
@@ -37,8 +38,8 @@ export function StageView() {
         const app = model.appOf(id);
         if (!app || app.id === model.root) return { id: 'meridian', label: 'Meridian' };
         return { id: app.id, label: app.name };
-      }, aspect),
-    [steps, participants, model, aspect],
+      }, { width: vw, height: vh }),
+    [steps, participants, model, vw, vh],
   );
 
   // One edge per ordered pair; both directions get their own lane.
@@ -79,6 +80,12 @@ export function StageView() {
   const curEdge = edges.find((e) => e.key === curKey);
   const curColor = current ? (isHypoStep(current) ? 'var(--k-hypo)' : STEP_COLOR[current.kind]) : 'var(--accent)';
 
+  const labelPos = useMemo(() => {
+    if (!curEdge?.geo || !current) return null;
+    const w = Math.min(260, current.label.length * 6.7 + 18);
+    return { ...placeLabel(curEdge.geo.mx, curEdge.geo.my, w, 22, layout.nodes.values()), w };
+  }, [curEdge, current, layout]);
+
   const cw = layout.width + PAD * 2;
   const ch = layout.height + PAD * 2;
   const scale = size.width && size.height ? Math.max(0.45, Math.min(1.2, (size.width - 16) / cw, (size.height - 16) / ch)) : 1;
@@ -108,11 +115,11 @@ export function StageView() {
                 {edges.map((e) => {
                   const u = used.get(e.key);
                   if (!u || !e.geo || e.key === curKey) return null;
-                  return <path key={e.key} d={e.geo.d} fill="none" stroke={u.color} strokeOpacity={0.4} strokeWidth={1.6} strokeDasharray={u.hypo ? '5 4' : undefined} markerEnd="url(#stage-arrow)" />;
+                  return <path key={e.key} d={e.geo.d} fill="none" stroke={u.color} strokeOpacity={0.3} strokeWidth={1.25} strokeDasharray={u.hypo ? '5 4' : undefined} markerEnd="url(#stage-arrow)" />;
                 })}
                 {curEdge?.geo && current && (
                   <g>
-                    <path d={curEdge.geo.d} fill="none" stroke={curColor} strokeWidth={3} strokeDasharray={isHypoStep(current) ? '7 5' : undefined} markerEnd="url(#stage-arrow)" />
+                    <path d={curEdge.geo.d} fill="none" stroke={curColor} strokeWidth={3.2} strokeDasharray={isHypoStep(current) ? '7 5' : undefined} markerEnd="url(#stage-arrow)" />
                     {!reduced && (
                       <>
                         <path d={curEdge.geo.d} fill="none" stroke="var(--canvas)" strokeOpacity={0.55} strokeWidth={1.4} strokeDasharray="4 8" style={{ animation: 'dash-flow 0.7s linear infinite' }} />
@@ -141,10 +148,10 @@ export function StageView() {
                 onClick={() => selectEntity(n.id, { openInspector: true })}
               />
             ))}
-            {curEdge?.geo && current && (
+            {labelPos && current && (
               <div
-                className="pointer-events-none absolute z-10 max-w-[260px] truncate rounded-md border bg-surface px-1.5 py-0.5 font-mono text-[11px] font-semibold text-fg shadow-panel"
-                style={{ left: curEdge.geo.mx + PAD, top: curEdge.geo.my + PAD, transform: 'translate(-50%, -50%)', borderColor: curColor }}
+                className="pointer-events-none absolute z-10 truncate rounded-md border bg-surface px-1.5 py-0.5 font-mono text-[11px] font-semibold text-fg shadow-panel"
+                style={{ left: labelPos.x + PAD, top: labelPos.y + PAD, maxWidth: labelPos.w, transform: 'translate(-50%, -50%)', borderColor: curColor }}
                 data-testid="stage-edge-label"
               >
                 {current.label}

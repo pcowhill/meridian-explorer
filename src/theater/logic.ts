@@ -316,16 +316,23 @@ export interface StageLayout {
 }
 
 /**
- * Participants grouped by their application/container, groups placed in the
- * order they first take part (left → right, wrapping into rows when that
- * fits the viewport's aspect ratio better), nodes top → bottom in the order
- * they first take part. Depends only on the steps and the aspect ratio, never
- * on the current step.
+ * Participants grouped by their application/container. Groups are placed in
+ * the order their first participant appears in the scenario's participant
+ * list (the lane order: who starts it first), left → right, wrapping onto
+ * further rows only when one row would have to shrink too much to fit the
+ * viewport. Nodes inside a group keep participant order. Depends only on the
+ * steps, participants and (quantised) viewport — never on the current step.
  */
-export function stageLayout(steps: ScenarioStep[], participants: string[], groupOf: (id: string) => { id: string; label: string }, aspect = 1.6): StageLayout {
+export function stageLayout(
+  steps: ScenarioStep[],
+  participants: string[],
+  groupOf: (id: string) => { id: string; label: string },
+  viewport: { width: number; height: number } = { width: 1200, height: 700 },
+): StageLayout {
   const order: string[] = [];
+  const used = new Set(steps.flatMap((s) => [s.from, s.to]));
+  for (const p of participants) if (!order.includes(p) && (used.size === 0 || used.has(p))) order.push(p);
   for (const s of steps) for (const id of [s.from, s.to]) if (!order.includes(id)) order.push(id);
-  for (const p of participants) if (!order.includes(p)) order.push(p);
   const groups = new Map<string, { label: string; ids: string[] }>();
   for (const id of order) {
     const g = groupOf(id);
@@ -335,7 +342,6 @@ export function stageLayout(steps: ScenarioStep[], participants: string[], group
   }
   const list = [...groups.entries()].map(([id, g]) => ({ id, ...g, w: NODE_W + GROUP_PAD * 2, h: GROUP_HEAD + g.ids.length * NODE_H + (g.ids.length - 1) * NODE_GAP + GROUP_PAD }));
 
-  // Choose how many rows of groups fit the viewport best.
   const arrange = (rows: number) => {
     const perRow = Math.ceil(list.length / rows);
     const chunks: (typeof list)[] = [];
@@ -344,12 +350,16 @@ export function stageLayout(steps: ScenarioStep[], participants: string[], group
     const heights = chunks.map((c) => Math.max(...c.map((g) => g.h)));
     const W = Math.max(0, ...widths);
     const H = heights.reduce((a, b) => a + b, 0) + (chunks.length - 1) * ROW_GAP;
-    return { chunks, heights, W, H, fit: Math.min(aspect / Math.max(1, W), 1 / Math.max(1, H)) };
+    return { chunks, heights, W, H, scale: Math.min(viewport.width / Math.max(1, W), viewport.height / Math.max(1, H)) };
   };
+  // Fewest rows that still show the stage at a readable size.
   let best = arrange(1);
-  for (let r = 2; r <= Math.min(4, list.length); r++) {
-    const a = arrange(r);
-    if (a.fit > best.fit * 1.08) best = a;
+  if (best.scale < 0.8) {
+    for (let r = 2; r <= Math.min(4, list.length); r++) {
+      const a = arrange(r);
+      if (a.scale > best.scale) best = a;
+      if (a.scale >= 0.8) break;
+    }
   }
 
   const nodes = new Map<string, StageNode>();
@@ -383,21 +393,53 @@ export function edgeGeometry(a: StageNode, b: StageNode, lane = 0): { d: string;
     my: (y1 + 3 * c1y + 3 * c2y + y2) / 8,
   });
   if (Math.abs(a.x - b.x) < 1) {
-    // Same column: arc out to the right.
+    // Same column (same group): a short arc out to the right.
     const x1 = a.x + a.w;
     const y1 = a.y + a.h / 2 + off;
     const x2 = b.x + b.w;
     const y2 = b.y + b.h / 2 + off;
-    const bulge = 36 + Math.abs(y2 - y1) * 0.18 + Math.max(0, lane) * 10;
+    const bulge = 30 + Math.min(40, Math.abs(y2 - y1) * 0.15) + Math.max(0, lane) * 10;
     return cubic(x1, y1, x1 + bulge, y1, x2 + bulge, y2, x2, y2);
   }
+  const gap = b.x > a.x + a.w ? b.x - (a.x + a.w) : a.x > b.x + b.w ? a.x - (b.x + b.w) : -1;
+  if (gap < 24) {
+    // Columns overlap (different rows): connect bottom ↔ top, nearly straight.
+    const down = b.y > a.y;
+    const x1 = a.x + a.w / 2 + off;
+    const x2 = b.x + b.w / 2 + off;
+    const y1 = down ? a.y + a.h : a.y;
+    const y2 = down ? b.y : b.y + b.h;
+    const dy = Math.min(50, Math.abs(y2 - y1) * 0.35) * (down ? 1 : -1);
+    return cubic(x1, y1, x1, y1 + dy, x2, y2 - dy, x2, y2);
+  }
+  // Side to side, with short horizontal tangents so long hops stay close to straight.
   const forward = b.x > a.x;
   const x1 = forward ? a.x + a.w : a.x;
   const x2 = forward ? b.x : b.x + b.w;
   const y1 = a.y + a.h / 2 + off;
   const y2 = b.y + b.h / 2 + off;
-  const dx = Math.max(30, Math.abs(x2 - x1) * 0.45) * (forward ? 1 : -1);
+  const dx = Math.min(56, gap * 0.35) * (forward ? 1 : -1);
   return cubic(x1, y1, x1 + dx, y1, x2 - dx, y2, x2, y2);
+}
+
+/**
+ * Where to put an edge label of the given size near (mx, my) so that it does
+ * not cover a node: the midpoint if free, else the nearest free spot above or
+ * below it.
+ */
+export function placeLabel(mx: number, my: number, w: number, h: number, nodes: Iterable<StageNode>): { x: number; y: number } {
+  const boxes = [...nodes];
+  const free = (x: number, y: number) =>
+    boxes.every((n) => x + w / 2 < n.x - 4 || x - w / 2 > n.x + n.w + 4 || y + h / 2 < n.y - 4 || y - h / 2 > n.y + n.h + 4);
+  for (const d of [0, -1, 1, -2, 2, -3, 3, -4, 4]) {
+    const y = my + d * (h + 6);
+    if (free(mx, y)) return { x: mx, y };
+  }
+  for (const dx of [-1, 1]) {
+    const x = mx + dx * (w / 2 + 40);
+    if (free(x, my)) return { x, y: my };
+  }
+  return { x: mx, y: my };
 }
 
 // ---------------------------------------------------------------------------
