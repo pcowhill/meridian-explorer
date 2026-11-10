@@ -1,0 +1,95 @@
+/* Explanation Studio — canvas-specific styling (tokens only). */
+
+.studio-canvas .react-flow__node {
+  border-radius: 8px;
+}
+.studio-canvas .react-flow__node.selectable:focus-visible {
+  outline: none;
+}
+
+/* Frames: only the title bar, border handles and resize controls take the pointer,
+   so drag-selection and clicks inside a frame reach the canvas and its contents. */
+.studio-canvas .react-flow__node.studio-frame {
+  pointer-events: none !important;
+}
+.studio-canvas .react-flow__node.studio-frame .frame-handle,
+.studio-canvas .react-flow__node.studio-frame .react-flow__resize-control,
+.studio-canvas .react-flow__node.studio-frame .react-flow__handle,
+.studio-canvas .react-flow__node.studio-frame textarea {
+  pointer-events: all;
+}
+
+.studio-selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 9px;
+}
+.studio-dim {
+  opacity: 0.16;
+  filter: saturate(0.4);
+}
+.studio-lit > :not(.react-flow__handle):not(.react-flow__resize-control) {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent), var(--shadow-lg);
+}
+.studio-anim-current > :not(.react-flow__handle):not(.react-flow__resize-control) {
+  animation: pulse-ring 1s ease-out infinite;
+  box-shadow: 0 0 0 3px var(--accent);
+}
+.studio-connect-source {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+  border-radius: 9px;
+}
+.studio-connect-mode .react-flow__node {
+  cursor: crosshair;
+}
+
+/* Handles: invisible until hover, then small dots on each side. */
+.studio-canvas .react-flow__handle.studio-handle {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--surface);
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.studio-canvas .react-flow__node:hover .react-flow__handle.studio-handle,
+.studio-canvas .react-flow__node.selected .react-flow__handle.studio-handle,
+.studio-connect-mode .react-flow__handle.studio-handle,
+.studio-canvas .react-flow__handle.studio-handle.connectingfrom,
+.studio-canvas .react-flow__handle.studio-handle.connectingto {
+  opacity: 1;
+}
+.studio-canvas .react-flow__handle.studio-handle.connectingto {
+  background: var(--ok);
+}
+
+.studio-canvas .studio-resize-handle {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 2px;
+  background: var(--surface) !important;
+  border: 1.5px solid var(--accent) !important;
+}
+.studio-canvas .studio-resize-line {
+  border-color: transparent !important;
+}
+
+.studio-canvas .react-flow__pane.selection {
+  cursor: default;
+}
+.studio-canvas .react-flow__selection {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px dashed var(--accent);
+}
+.studio-canvas .react-flow__nodesselection-rect {
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.studio-canvas .react-flow__edge-textwrapper,
+.studio-canvas .react-flow__edgelabel-renderer {
+  font-family: var(--font-sans);
+}
+.studio-minimap {
+  margin-bottom: 64px !important;
+}

@@ -23,6 +23,7 @@ import {
   orderChain,
   placeEntities,
   sequenceFromChain,
+  spotFor,
   systemOverviewIds,
   templateFrom,
   toStudioEdge,
@@ -64,10 +65,27 @@ function visibleRects() {
   return s.nodes.filter((n) => !n.hidden).map((n) => absRect(n, byId));
 }
 
+/** Fit padding that keeps content clear of the floating panels and bars. */
+export function fitPadding(): { top: string; right: string; bottom: string; left: string } {
+  const panel = canvasEl?.parentElement?.querySelector('[data-testid=selection-panel]');
+  const legend = canvasEl?.parentElement?.querySelector('[data-testid=hypo-legend]');
+  return { top: legend ? '64px' : '40px', right: panel ? `${panel.getBoundingClientRect().width + 36}px` : '40px', bottom: '76px', left: '40px' };
+}
+
 export function fitTo(ids: string[], duration = 280): void {
   if (!flow) return;
   const nodes = ids.length ? ids.map((id) => ({ id })) : undefined;
-  void flow.fitView({ nodes, padding: 0.18, duration, maxZoom: 1.25 });
+  window.setTimeout(() => void flow?.fitView({ nodes, padding: fitPadding(), duration, maxZoom: 1.25 }), 30);
+}
+
+/** Bring a rectangle into view: fit a small board entirely, otherwise pan to it. */
+function ensureVisible(r: { x: number; y: number; w: number; h: number }): void {
+  if (isOnScreen(r, 24)) return;
+  const nodes = st().nodes.filter((n) => !n.hidden);
+  window.setTimeout(() => {
+    if (nodes.length <= 14) void flow?.fitView({ padding: fitPadding(), duration: 280, maxZoom: 1.1 });
+    else void flow?.setCenter(r.x + r.w / 2, r.y + r.h / 2, { zoom: flow.getZoom(), duration: 280 });
+  }, 30);
 }
 
 export function fitAll(): void {
@@ -98,10 +116,11 @@ export function addEntity(entityId: string, at?: Point | null): string | null {
     return existing.id;
   }
   const s = DEFAULT_SIZE.entity;
-  const p = at ? { x: at.x - s.w / 2, y: at.y - s.h / 2 } : findFreeSpot(visibleRects(), s.w, s.h, viewCenter());
+  const p = at ? { x: at.x - s.w / 2, y: at.y - s.h / 2 } : spotFor(model, st().nodes, entityId, viewCenter());
   const node = makeNode('entity', p, { entityId });
   st().addNodes([node], [], { autoConnect: usePrefs.getState().autoConnect });
   useApp.getState().selectEntity(entityId);
+  if (!at) ensureVisible({ x: p.x, y: p.y, w: s.w, h: s.h });
   return node.id;
 }
 
@@ -141,16 +160,9 @@ export function addWidget(spec: WidgetSpec, attachTo?: string, at?: Point): stri
   const node = makeNode(spec.type, p, spec.data, spec.size);
   if (anchor) edges.push({ id: newEdgeId(), source: anchor.id, target: node.id, type: 'studio', data: { arrow: 'none', strokeStyle: 'dotted', color: 'gray' } });
   s.addNodes([node], edges);
-  if (anchor && flow) {
-    const r = { x: p.x, y: p.y, w: spec.size.w, h: spec.size.h };
-    const vp = flow.getViewport();
-    const el = canvasEl?.getBoundingClientRect();
-    if (el) {
-      const left = -vp.x / vp.zoom;
-      const top = -vp.y / vp.zoom;
-      const visible = r.x >= left && r.y >= top && r.x + r.w <= left + el.width / vp.zoom && r.y + r.h <= top + el.height / vp.zoom;
-      if (!visible) fitTo([anchor.id, node.id]);
-    }
+  if (!isOnScreen({ x: p.x, y: p.y, w: spec.size.w, h: spec.size.h }, 16)) {
+    if (anchor) fitTo([anchor.id, node.id]);
+    else ensureVisible({ x: p.x, y: p.y, w: spec.size.w, h: spec.size.h });
   }
   return node.id;
 }
@@ -385,13 +397,18 @@ export function paste(text?: string | null): boolean {
   return true;
 }
 
-function isOnScreen(b: { x: number; y: number; w: number; h: number }): boolean {
+/** Fully inside the visible canvas (inset by `inset` screen px)? With inset < 0 any overlap counts. */
+function isOnScreen(b: { x: number; y: number; w: number; h: number }, inset = -1): boolean {
   if (!flow || !canvasEl) return false;
   const vp = flow.getViewport();
   const el = canvasEl.getBoundingClientRect();
   const left = -vp.x / vp.zoom;
   const top = -vp.y / vp.zoom;
-  return b.x < left + el.width / vp.zoom && b.x + b.w > left && b.y < top + el.height / vp.zoom && b.y + b.h > top;
+  const right = left + el.width / vp.zoom;
+  const bottom = top + el.height / vp.zoom;
+  if (inset < 0) return b.x < right && b.x + b.w > left && b.y < bottom && b.y + b.h > top;
+  const m = inset / vp.zoom;
+  return b.x >= left + m && b.y >= top + m && b.x + b.w <= right - m && b.y + b.h <= bottom - m;
 }
 
 // ---------------------------------------------------------------------------

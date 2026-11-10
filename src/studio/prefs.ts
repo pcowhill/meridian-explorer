@@ -10,6 +10,8 @@ interface Prefs {
   autoConnect: boolean;
   snap: boolean;
   minimap: boolean;
+  /** Selection panel shows style / arrange sections. */
+  panelExpanded: boolean;
   set: (patch: Partial<Omit<Prefs, 'set'>>) => void;
 }
 
@@ -29,6 +31,7 @@ export const usePrefs = create<Prefs>()(
       autoConnect: true,
       snap: true,
       minimap: false,
+      panelExpanded: false,
       set: (patch) => set(patch),
     }),
     { name: 'meridian-explorer:studio-prefs:v1', storage: safeStorage, partialize: ({ set: _set, ...rest }) => rest },

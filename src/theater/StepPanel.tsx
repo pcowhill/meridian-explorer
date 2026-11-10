@@ -18,7 +18,7 @@ import { DbTable } from '@/viewers/DbTable';
 import { BalancePill } from '@/viewers/BalanceCalculator';
 import { SourceList } from '@/viewers/CodeBlock';
 import { OUTCOME_COLOR, STEP_ICON, useTheater } from './context';
-import { isHypoStep, statesAround } from './logic';
+import { isHypoStep, statesAround, stepConfidence } from './logic';
 
 export function StepPanel() {
   const { scenario, variant, steps, index, step, marks, switchVariant } = useTheater();
@@ -49,7 +49,7 @@ export function StepPanel() {
             <Icon size={11} aria-hidden />
             {STEP_LABEL[step.kind]}
           </Badge>
-          {step.hypothetical && step.confidence !== 'hypothetical' ? <ConfidenceBadge confidence="hypothetical" /> : <ConfidenceBadge confidence={step.confidence ?? scenario.confidence} />}
+          <ConfidenceBadge confidence={stepConfidence(step, scenario)} />
           {mark?.hiddenBefore ? (
             <span className="inline-flex items-center gap-1 text-[10.5px] text-fg-subtle" title="Steps hidden at this detail level whose effects are included here">
               <EyeOff size={11} aria-hidden /> +{mark.hiddenBefore} hidden

@@ -74,7 +74,7 @@ export function Palette() {
           { value: 'widgets', label: 'Widgets' },
           { value: 'templates', label: 'Templates' },
         ]}
-        className="shrink-0"
+        className="shrink-0 px-1 [&>button]:px-1.5"
       />
       <div className="min-h-0 flex-1 overflow-y-auto">
         {tab === 'meridian' && <MeridianTab />}
@@ -262,7 +262,7 @@ function Browse({ onBoard }: { onBoard: Set<string> }) {
             {isOpen && (
               <div className="ml-3 border-l border-line pl-1">
                 {shown.map((it) => (
-                  <EntityRow key={it.id} id={it.id} title={it.name} subtitle={model.appOf(it.id)?.name} onBoard={onBoard.has(it.id)} />
+                  <EntityRow key={it.id} id={it.id} title={it.name} subtitle={model.appOf(it.id)?.id !== it.id ? model.appOf(it.id)?.name : model.entity(it.id)?.summary} onBoard={onBoard.has(it.id)} />
                 ))}
                 {shown.length < items.length && (
                   <button type="button" className="px-2 py-1 text-[11.5px] text-accent hover:underline" onClick={() => setAll((s) => new Set([...s, kind]))}>

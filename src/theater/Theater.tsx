@@ -29,6 +29,8 @@
  *   Editor.tsx         edit mode: outline (reorder/duplicate/delete/insert,
  *                      participants, reusable steps) and the step form.
  *   EndpointPicker.tsx / EntityPicker.tsx   searchable pickers.
+ *   useElementSize.ts  ResizeObserver hook; theater.css  the pulse keyframes.
+ *   *.test.ts(x)       logic unit tests + component tests of the main flows.
  *
  * Data flow: `useApp().theater` (scenarioId, variant, stepIndex, view, speed)
  * is the single source of truth for what is shown — deep links and other modes
@@ -76,6 +78,7 @@ import {
   nextInteresting,
   nextSpeed,
   resolveScenario,
+  sanitiseImported,
   stepDuration,
   stepMarks,
   studioRequest,
@@ -282,7 +285,7 @@ export default function Theater() {
     const r = parseImport(text);
     if (!r.ok) return toast(r.errors[0] ?? 'Could not import the file', 'warn');
     if (r.kind !== 'scenario') return toast(`That file holds a ${r.kind}, not a scenario — import it from the workspace panel.`, 'warn');
-    const s = uniqueImportId(r.data, (x) => custom.some((c) => c.id === x) || !!model.scenario(x));
+    const s = uniqueImportId(sanitiseImported(r.data), (x) => custom.some((c) => c.id === x) || !!model.scenario(x));
     saveCustom(s);
     theaterOpen(s.id);
     toast(`Imported “${s.title}”${r.warnings.length ? ` (${r.warnings.length} warning${r.warnings.length === 1 ? '' : 's'})` : ''}`, 'ok');

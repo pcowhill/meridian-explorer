@@ -10,7 +10,7 @@ export const SIZES = {
   root: { w: 340, h: 156 },
   container: { w: 240, h: 112 },
   leaf: { w: 216, h: 96 },
-  stub: { w: 200, h: 60 },
+  stub: { w: 236, h: 60 },
 } as const satisfies Record<string, Size>;
 
 export function nodeSize(tree: VisibleTree, id: string): Size {

@@ -137,7 +137,7 @@ const Rows = memo(function Rows({ steps, participants, laneW, width, index, go, 
         const x2 = xOf(s.to);
         const self = s.from === s.to;
         const dashed = s.kind === 'response' || s.kind === 'event' || hypo;
-        const span = self ? laneW - 40 : Math.abs(x2 - x1) - 16;
+        const span = self ? Math.min(320, width - x1 - 44) : Math.abs(x2 - x1) - 16;
         const maxChars = Math.max(12, Math.floor(span / 6.6));
         const label = s.label.length > maxChars ? `${s.label.slice(0, maxChars - 1)}…` : s.label;
         const active = state === 'active';

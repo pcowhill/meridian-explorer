@@ -92,8 +92,12 @@ describe('layoutTree', () => {
     const b1 = after.rects.get('backend')!;
     expect([b1.x, b1.y]).toEqual([b0.x, b0.y]);
     expect(b1.w).toBeGreaterThan(b0.w);
-    // Things below move down by the growth, keeping their order.
-    expect(after.rects.get('db')!.y - before.rects.get('db')!.y).toBe(b1.h - b0.h);
+    // The database sits in Backend's row, to its right: it slides right by the growth and stays on the row.
+    expect(after.rects.get('db')!.x - before.rects.get('db')!.x).toBe(b1.w - b0.w);
+    expect(after.rects.get('db')!.x).toBeGreaterThan(b1.x + b1.w - 1);
+    // Things in the rows below move down, keeping their order.
+    expect(after.rects.get('infra')!.y).toBeGreaterThan(before.rects.get('infra')!.y);
+    expect(after.rects.get('infra')!.x).toBe(before.rects.get('infra')!.x);
   });
 
   it('changing the detail level keeps sibling order (no reshuffle)', () => {

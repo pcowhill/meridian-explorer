@@ -23,6 +23,8 @@ import {
   pathsOverview,
   removeParticipant,
   resolveScenario,
+  sanitiseImported,
+  stepConfidence,
   reusableCaller,
   stageLayout,
   statesAround,
@@ -256,6 +258,15 @@ describe('editing', () => {
     expect(reusableCaller(trace.steps[0], trace.participants, kindOf)).toBe('ep:GET /api/accounts');
     const guard = trace.steps.find((s) => s.kind === 'guard')!;
     expect(reusableCaller(guard, trace.participants, kindOf)).toBe(guard.to);
+  });
+  it('never vouches for user-written steps', () => {
+    const blank = blankScenario('a', 'b');
+    const step = { ...blank.steps[0], hypothetical: undefined };
+    expect(stepConfidence(step, blank)).toBe('hypothetical');
+    expect(stepConfidence(ops.steps[0], ops)).toBe(ops.steps[0].confidence ?? 'verified');
+    const copy = customizeCopy(ops);
+    expect(copy.steps.every((s) => s.confidence)).toBe(true);
+    expect(sanitiseImported({ ...tiny }).steps[0].confidence).toBe('hypothetical');
   });
   it('renames imports that collide', () => {
     expect(uniqueImportId(tiny, () => false).id).toBe('tiny');

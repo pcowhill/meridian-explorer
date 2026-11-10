@@ -74,7 +74,7 @@ export const StudioEdge = memo(function StudioEdge({ id, source, target, data, s
 
   const ea = sn?.type === 'entity' ? (sn.data as { entityId?: string }).entityId : undefined;
   const eb = tn?.type === 'entity' ? (tn.data as { entityId?: string }).entityId : undefined;
-  const status = useMemo(() => edgeStatus(model, ea, eb, d), [model, ea, eb, d]);
+  const status = useMemo(() => edgeStatus(model, ea, eb, data), [model, ea, eb, data]);
 
   if (!sn || !tn || sn.hidden || tn.hidden) return null;
 
@@ -143,7 +143,7 @@ export const StudioEdge = memo(function StudioEdge({ id, source, target, data, s
       {(label || d.order !== undefined || showChip || editing) && (
         <EdgeLabelRenderer>
           <div
-            className="nodrag nopan absolute flex max-w-[230px] items-center gap-1"
+            className="nodrag nopan absolute flex max-w-[200px] items-center gap-1"
             style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)`, pointerEvents: 'all', opacity: dim ? 0.15 : 1, zIndex: selected ? 5 : 1 }}
             onClick={(e) => {
               e.stopPropagation();

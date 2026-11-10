@@ -6,6 +6,7 @@
  */
 import {
   activeParticipants,
+  type Confidence,
   stateAfter,
   variantSteps,
   visibleSteps,
@@ -82,6 +83,22 @@ export const clampIndex = (index: number, length: number): number => (length <= 
 
 export const isDecision = (s: ScenarioStep): boolean => s.kind === 'decision' || !!s.decision;
 export const isHypoStep = (s: ScenarioStep): boolean => !!s.hypothetical || s.confidence === 'hypothetical';
+
+/**
+ * The provenance shown for a step. In a user-made scenario a step with no
+ * recorded confidence was written by the user, so it is not vouched for.
+ */
+export function stepConfidence(s: ScenarioStep, scenario: Scenario): Confidence {
+  if (s.hypothetical) return 'hypothetical';
+  if (s.confidence) return s.confidence;
+  if (scenario.custom && !scenario.confidence) return 'hypothetical';
+  return scenario.confidence ?? 'verified';
+}
+
+/** Imported scenarios: steps with no recorded provenance are treated as hypothetical. */
+export function sanitiseImported(s: Scenario): Scenario {
+  return { ...s, custom: true, steps: s.steps.map((st) => (st.confidence ? st : { ...st, confidence: 'hypothetical' as const })) };
+}
 
 export interface StepMark {
   decision: boolean;
@@ -400,6 +417,8 @@ const slug = (s: string) =>
 /** An editable copy of any scenario (built-in, assembled or custom). */
 export function customizeCopy(source: Scenario, alreadyMine = !!source.custom): Scenario {
   const copy = structuredClone(source);
+  // Pin each step's provenance so it survives in the copy (where a missing value means "user-made").
+  copy.steps = copy.steps.map((st) => ({ ...st, confidence: st.confidence ?? source.confidence ?? 'verified' }));
   return {
     ...copy,
     id: `custom:${slug(source.title)}-${Date.now().toString(36)}${rand()}`,

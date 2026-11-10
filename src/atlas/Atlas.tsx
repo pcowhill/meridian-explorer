@@ -249,8 +249,13 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
   }, [lensKey, scene.lensIds, scene.rects, width, canvas, go]);
 
   // Semantic-zoom font scaling without React renders.
+  // Quantised so a wheel gesture restyles the nodes only every few percent of zoom.
+  const lastInv = useRef(1);
   const onMove = useCallback((_: unknown, vp: Viewport) => {
-    wrapRef.current?.style.setProperty('--atlas-inv', String(1 / vp.zoom));
+    const inv = 1 / vp.zoom;
+    if (Math.abs(inv - lastInv.current) / lastInv.current < 0.04) return;
+    lastInv.current = inv;
+    wrapRef.current?.style.setProperty('--atlas-inv', inv.toFixed(3));
   }, []);
 
   // ---- Selection-derived values ------------------------------------------------------
@@ -453,7 +458,10 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
         onPaneClick={() => useApp.getState().select(null)}
         onNodeClick={NOOP}
         onMove={onMove}
-        onInit={(inst) => onMove(null, inst.getViewport())}
+        onInit={(inst) => {
+          lastInv.current = 0;
+          onMove(null, inst.getViewport());
+        }}
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
         nodesDraggable={false}
@@ -781,9 +789,13 @@ function SelectionToolbar(p: ToolbarProps) {
   const half = 190;
   const x = Math.max(half + 8, Math.min(width - half - 8, tx + (p.rect.x + p.rect.w / 2) * zoom));
   const yTop = ty + p.rect.y * zoom - 10;
+  // No room above the node (it starts above the top chrome): tuck the toolbar inside its top edge
+  // instead, so it covers the node itself rather than a neighbour.
   const below = yTop < 96;
-  const y = below ? Math.min(height - 60, Math.max(96, ty + (p.rect.y + p.rect.h) * zoom + 10)) : yTop;
-  if (y < 0 || y > height + 40) return null;
+  const bottom = ty + (p.rect.y + p.rect.h) * zoom;
+  if (below && bottom < 120) return null;
+  const y = below ? Math.min(height - 60, 96) : yTop;
+  if (y > height + 40) return null;
   return (
     <div
       role="toolbar"

@@ -37,9 +37,9 @@ test.describe('Scenario Theater', () => {
     // Play advances on its own; Pause stops it.
     await page.keyboard.press('.');
     await page.keyboard.press('.');
-    await page.getByRole('button', { name: 'Play' }).click();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
     await expect.poll(() => stepNumber(page), { timeout: 15_000 }).toBeGreaterThan(2);
-    await page.getByRole('button', { name: 'Pause' }).click();
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
     const paused = await stepNumber(page);
     await page.waitForTimeout(1500);
     expect(await stepNumber(page)).toBe(paused);
@@ -66,6 +66,7 @@ test.describe('Scenario Theater', () => {
 
   test('alternative outcomes: a decision switches the path taken', async ({ page }) => {
     await open(page, '#/theater?s=transfer&d=5');
+    await expect(page.getByTestId('step-title')).toBeVisible();
     const select = page.getByTestId('variant-select');
     await expect(select).toBeVisible();
     const successTotal = await stepTotal(page);
@@ -77,11 +78,14 @@ test.describe('Scenario Theater', () => {
     expect(page.url()).toContain('v=insufficient-funds');
     expect(await stepTotal(page)).not.toBe(successTotal);
     await page.keyboard.press('End');
-    await expect(page.getByTestId('step-panel')).toContainText(/insufficient|available balance/i);
+    await expect(page.getByTestId('step-panel')).toContainText(/Nothing moved|Refused|insufficient/i);
+    // A refused transfer leaves both balances where they started.
+    await expect(page.getByTestId('step-panel')).toContainText('$2,451.10');
   });
 
   test('an operator approval flips the pending entry to posted (Scenario D)', async ({ page }) => {
     await open(page, '#/theater?s=ops-approval&d=5&aud=dba');
+    await expect(page.getByTestId('step-title')).toBeVisible();
     await page.keyboard.press('End');
     const total = await stepTotal(page);
     expect(await stepNumber(page)).toBe(total);
@@ -127,14 +131,19 @@ test.describe('Scenario Theater', () => {
     await page.getByTestId('endpoint-search').fill('/api/accounts');
     await page.locator('[data-endpoint="ep:GET /api/accounts"]').click();
     await expect(counter(page)).toContainText(/1\s*of/i);
-    expect(decodeURIComponent(page.url())).toContain('trace:ep:GET /api/accounts');
+    expect(decodeURIComponent(page.url()).replace(/\+/g, ' ')).toContain('trace:ep:GET /api/accounts');
     const before = await stepTotal(page);
 
+    // Editing works on a copy; the original trace is untouched.
     await page.getByRole('button', { name: 'Edit scenario' }).click();
+    await expect(page.getByTestId('outline')).toBeVisible();
+    await page.getByTestId('form-title').fill('Dashboard asks for the accounts');
     await page.getByRole('button', { name: 'Save scenario' }).click();
+    await expect(page.getByTestId('save-state')).toContainText(/Saved/i);
     await page.reload();
     await expect(page.getByTestId('theater-root')).toBeVisible();
-    await expect(counter(page)).toBeVisible();
+    // The saved copy is the open scenario after a reload, with the edited step.
+    await expect(page.getByTestId('step-title')).toHaveText('Dashboard asks for the accounts');
     expect(await stepTotal(page)).toBeGreaterThanOrEqual(before);
   });
 

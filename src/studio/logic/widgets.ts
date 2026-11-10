@@ -162,7 +162,7 @@ export function bindingItems(model: Model, kind: WidgetKind, customScenarios: Sc
       for (const c of model.contracts.values()) add({ key: c.id, label: `${c.method} ${c.path}`, sub: c.summary, group: 'Endpoints', make: () => spec('contract', { contractId: c.id }) });
       break;
     case 'sequence':
-      for (const s of scenarios) add({ key: s.id, label: s.title, sub: s.question, group: 'Scenarios', make: () => sequenceSpec(s.id) });
+      for (const s of scenarios) add({ key: s.id, label: s.title, sub: s.question, group: 'Scenarios', text: `${s.title} ${s.question} ${s.id} ${s.category}`, make: () => sequenceSpec(s.id) });
       for (const c of model.contracts.values()) add({ key: `trace:${c.id}`, label: `${c.method} ${c.path}`, sub: 'Assemble a trace from the contract flow', group: 'Endpoint traces', make: () => traceSpec(c.id) });
       break;
     case 'state':

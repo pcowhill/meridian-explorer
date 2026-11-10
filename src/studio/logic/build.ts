@@ -277,8 +277,8 @@ export function dependencyDiagram(model: Model, nodes: readonly SNode[], entityI
   }
 
   const size = DEFAULT_SIZE.entity;
-  const gapX = 150;
-  const gapY = 28;
+  const gapX = 230;
+  const gapY = 30;
   const colH = (n: number) => n * size.h + Math.max(0, n - 1) * gapY;
   const tallest = Math.max(size.h, ...levels.left.map((c) => colH(c.length)), ...levels.right.map((c) => colH(c.length)));
   const origin = clearOrigin(allRects(nodes));
@@ -734,4 +734,28 @@ export function instantiate(tpl: { nodes: StudioNode[]; edges: StudioEdge[] }, o
   const top = nodes.filter((n) => !n.parentId).map((n) => n.id);
   const c = cloneElements(nodes, edges, top, origin);
   return { nodes: c.nodes, edges: c.edges };
+}
+
+/**
+ * Where a single new entity should go: beside the on-board entity it relates to
+ * (right of what calls it, left of what it calls), else near `fallback`.
+ */
+export function spotFor(model: Model, nodes: readonly SNode[], entityId: string, fallback: Point): Point {
+  const size = DEFAULT_SIZE.entity;
+  const rects = allRects(nodes);
+  const byId = indexNodes(nodes);
+  let best: { node: SNode; right: boolean; d: number } | null = null;
+  for (const n of nodes) {
+    const other = entityOf(n);
+    if (!other || n.hidden || other === entityId) continue;
+    const rels = relationsForPair(model, entityId, other).filter((r) => !STRUCTURAL.includes(r.kind));
+    if (!rels.length) continue;
+    const r = absRect(n, byId);
+    const d = Math.hypot(r.x + r.w / 2 - fallback.x, r.y + r.h / 2 - fallback.y);
+    if (!best || d < best.d) best = { node: n, right: rels.some((x) => model.isWithin(x.from, other)), d };
+  }
+  if (!best) return findFreeSpot(rects, size.w, size.h, fallback, 40);
+  const r = absRect(best.node, byId);
+  const want = { x: best.right ? r.x + r.w + 150 + size.w / 2 : r.x - 150 - size.w / 2, y: r.y + r.h / 2 };
+  return findFreeSpot(rects, size.w, size.h, want, 40);
 }

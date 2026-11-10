@@ -74,7 +74,15 @@ describe('Inspector', () => {
     render(<Inspector />);
     act(() => useApp.getState().selectEntity('hypo:simpay'));
     expect(document.querySelector('[data-confidence="hypothetical"]')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Delete this hypothetical item' })).toBeInTheDocument();
+    // Shipped examples are read-only…
+    expect(screen.queryByRole('button', { name: 'Delete this hypothetical item' })).not.toBeInTheDocument();
+    // …the user's own hypothetical items can be deleted.
+    act(() => {
+      useWorkspace.getState().addHypoEntity({ id: 'hypo:mine', kind: 'external', name: 'Mine', parent: 'meridian', summary: 's' });
+      useApp.getState().selectEntity('hypo:mine');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete this hypothetical item' }));
+    expect(useWorkspace.getState().layers.find((l) => !l.builtIn)!.entities).toEqual([]);
   });
 });
 

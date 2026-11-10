@@ -589,6 +589,8 @@ function EntityInspector({ entity }: { entity: Entity }) {
   const scenarios = useRelatedScenarios(entity.id);
   const hasData = !!(entity.fields?.length || entity.values?.length || entity.example !== undefined || model.stateMachinesFor(entity.id).some((m) => m.subject === entity.id) || ['db:LedgerEntry', 'sh:ledger#deriveBalances', 'feat:balances', 'sh:ledger'].includes(entity.id));
   const hypo = entity.confidence === 'hypothetical';
+  // Items of a shipped example layer are read-only; only the user's own hypothetical items can be deleted.
+  const editableHypo = useWorkspace((s) => s.layers.some((l) => !l.builtIn && l.entities.some((e) => e.id === entity.id)));
 
   const tabs: { value: InspectorTab; label: string; count?: number }[] = [
     { value: 'overview', label: 'Overview' },
@@ -609,7 +611,7 @@ function EntityInspector({ entity }: { entity: Entity }) {
           <ConfidenceBadge confidence={entity.confidence} />
           {model.isProposedRemoval(entity.id) && <Badge color="var(--bad)">proposed removal</Badge>}
           <span className="flex-1" />
-          {hypo ? (
+          {hypo && !editableHypo ? null : hypo ? (
             <IconButton
               label="Delete this hypothetical item"
               size="sm"

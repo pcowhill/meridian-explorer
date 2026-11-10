@@ -189,7 +189,7 @@ const entities: Entity[] = [
     tech: ['SQLite', 'Prisma 5'],
     tags: ['data', 'database', 'persistence'],
     aliases: ['database', 'prisma', 'schema', 'dev.db'],
-    layout: { row: 3, order: 0 },
+    layout: { row: 2, order: 1 },
     sources: [
       { file: 'apps/backend/prisma/schema.prisma', start: 1, end: 19, symbol: 'provider = "sqlite"' },
       { file: 'apps/backend/src/db.ts', symbol: 'PrismaClient' },
@@ -211,7 +211,7 @@ const entities: Entity[] = [
     tech: ['TypeScript'],
     tags: ['library', 'domain', 'types'],
     aliases: ['@simbank/shared', 'packages/shared', 'shared package'],
-    layout: { row: 3, order: 1 },
+    layout: { row: 2, order: 2 },
     sources: [{ file: 'packages/shared/src/index.ts', start: 1, end: 26, symbol: '@simbank/shared' }],
   },
   {
@@ -226,7 +226,7 @@ const entities: Entity[] = [
     detail: 3,
     tags: ['boundary', 'integration', 'simulation'],
     aliases: ['external systems', 'payment network', 'third party', 'integration boundary'],
-    layout: { row: 2, order: 1 },
+    layout: { row: 1, order: 2 },
     confidence: 'simplified',
     sources: [
       { file: 'README.md', start: 3, end: 6, symbol: 'SIMULATION', note: 'No real integrations' },
@@ -241,7 +241,7 @@ const entities: Entity[] = [
     summary: 'CI, the immutable release pipeline and the public-demo hosting arrangement.',
     detail: 3,
     tags: ['deployment', 'ci', 'operations'],
-    layout: { row: 4, order: 0 },
+    layout: { row: 3, order: 0 },
     sources: [
       { file: '.github/workflows/ci.yml' },
       { file: 'docs/PUBLIC_DEMO_DEPLOYMENT.md' },
@@ -255,7 +255,7 @@ const entities: Entity[] = [
     summary: 'Vitest unit/integration tests and Playwright end-to-end specs that pin the behaviour described here.',
     detail: 4,
     tags: ['quality', 'tests'],
-    layout: { row: 4, order: 1 },
+    layout: { row: 3, order: 1 },
     sources: [{ file: 'TEST_STRATEGY.md' }, { file: 'vitest.workspace.ts' }, { file: 'playwright.config.ts' }],
   },
 
