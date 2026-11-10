@@ -30,6 +30,7 @@ import { useEffect } from 'react';
 import { useApp } from '@/state/app';
 import { useWorkspace } from '@/state/workspace';
 import { HypotheticalComponentDialog } from '@/shell/ProposeChange';
+import { cn } from '@/ui/primitives';
 import { addEntity, applyPatch, copySelection, paste, saveNow } from './commands';
 import { Canvas } from './Canvas';
 import { TemplateDialog, WidgetPicker } from './Dialogs';
@@ -201,6 +202,7 @@ export default function Studio() {
   useAnimationClock();
   useStudioHotkeys();
   const paletteOpen = usePrefs((s) => s.paletteOpen);
+  const presenting = useApp((s) => s.presenting);
   const hypoOpen = useStudioUi((s) => s.hypoOpen);
   const setUi = useStudioUi((s) => s.set);
   const connectTo = useStudio((s) => {
@@ -215,7 +217,7 @@ export default function Studio() {
         {paletteOpen && <Palette />}
         <div className="relative min-w-0 flex-1 overflow-hidden">
           <Canvas />
-          <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col items-start gap-2">
+          <div className={cn('pointer-events-none absolute left-3 z-10 flex flex-col items-start gap-2', presenting ? 'top-16' : 'top-3')}>
             <HypoLegend />
           </div>
           <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">

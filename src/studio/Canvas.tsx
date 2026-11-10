@@ -1,5 +1,5 @@
 /** The React Flow canvas: wiring between React Flow events, the Studio store and the shared selection. */
-import { useCallback, useEffect, useRef, type DragEvent } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -135,15 +135,17 @@ export function Canvas() {
   const onDragStart = useCallback(() => useStudio.getState().checkpoint(), []);
   const onDragStop = useCallback((_: unknown, __: unknown, dragged: SNode[]) => useStudio.getState().endDrag(dragged.map((n) => n.id)), []);
 
-  const onDragOver = useCallback((e: DragEvent) => {
-    if (e.dataTransfer.types.includes(DRAG_MIME)) {
+  // Palette drops are accepted anywhere over the canvas area (including the empty-board panel).
+  useEffect(() => {
+    const area = wrap.current?.parentElement;
+    if (!area) return;
+    const over = (e: globalThis.DragEvent) => {
+      if (!e.dataTransfer?.types.includes(DRAG_MIME)) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
-    }
-  }, []);
-  const onDrop = useCallback(
-    (e: DragEvent) => {
-      const raw = e.dataTransfer.getData(DRAG_MIME);
+    };
+    const drop = (e: globalThis.DragEvent) => {
+      const raw = e.dataTransfer?.getData(DRAG_MIME);
       if (!raw) return;
       e.preventDefault();
       const at = flow.screenToFlowPosition({ x: e.clientX, y: e.clientY });
@@ -154,12 +156,17 @@ export function Canvas() {
         const item = bindingItems(currentModel(), p.widget).find((x) => x.key === p.key);
         if (item) addWidget(item.make(), undefined, at);
       }
-    },
-    [flow],
-  );
+    };
+    area.addEventListener('dragover', over);
+    area.addEventListener('drop', drop);
+    return () => {
+      area.removeEventListener('dragover', over);
+      area.removeEventListener('drop', drop);
+    };
+  }, [flow]);
 
   return (
-    <div ref={wrap} className={cn('studio-canvas absolute inset-0', connectMode && 'studio-connect-mode')} data-testid="studio-canvas" onDragOver={onDragOver} onDrop={onDrop}>
+    <div ref={wrap} className={cn('studio-canvas absolute inset-0', connectMode && 'studio-connect-mode')} data-testid="studio-canvas">
       <svg width="0" height="0" className="absolute" aria-hidden>
         <defs>
           <pattern id="studio-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">

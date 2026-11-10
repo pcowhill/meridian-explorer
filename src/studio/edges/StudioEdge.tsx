@@ -43,6 +43,25 @@ export function borderPoint(b: Box, p: { x: number; y: number }, pad = 2): { x: 
   return { x, y, side };
 }
 
+const parallelCache = new WeakMap<object, Map<string, string>>();
+/** `index|count|direction` of each edge among the edges joining the same pair (cached per edges array). */
+function parallelIndex(edges: readonly { id: string; source: string; target: string; hidden?: boolean }[]): Map<string, string> {
+  let hit = parallelCache.get(edges);
+  if (hit) return hit;
+  hit = new Map();
+  const groups = new Map<string, { id: string; source: string }[]>();
+  for (const e of edges) {
+    if (e.hidden) continue;
+    const key = e.source < e.target ? `${e.source}|${e.target}` : `${e.target}|${e.source}`;
+    const g = groups.get(key);
+    if (g) g.push(e);
+    else groups.set(key, [e]);
+  }
+  for (const g of groups.values()) g.forEach((e, i) => hit!.set(e.id, `${i}|${g.length}|${e.source === g[0].source ? 1 : -1}`));
+  parallelCache.set(edges, hit);
+  return hit;
+}
+
 const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 export const STATUS_TEXT: Record<EdgeStatus, string> = {
@@ -57,10 +76,7 @@ export const StudioEdge = memo(function StudioEdge({ id, source, target, data, s
   const sn = useInternalNode<SNode>(source);
   const tn = useInternalNode<SNode>(target);
   const d: EdgeData = data ?? {};
-  const parallel = useStore((s) => {
-    const sibs = s.edges.filter((e) => !e.hidden && ((e.source === source && e.target === target) || (e.source === target && e.target === source)));
-    return `${sibs.findIndex((e) => e.id === id)}|${sibs.length}|${sibs.findIndex((e) => e.id === id) >= 0 && sibs[0].source === source ? 1 : -1}`;
-  });
+  const parallel = useStore((s) => parallelIndex(s.edges).get(id) ?? '0|1|1');
   const dim = useStudio((s) => (s.focus ? !s.focus.edgeIds.includes(id) : false));
   const emphasised = useStudio((s) => s.focus?.mode === 'path' && s.focus.edgeIds.includes(id));
   const editing = useStudio((s) => s.editingEdgeId === id);
@@ -94,6 +110,7 @@ export const StudioEdge = memo(function StudioEdge({ id, source, target, data, s
   let path: string;
   let lx: number;
   let ly: number;
+  let gap = 200;
   if (routing === 'step') {
     const sp = borderPoint(a, bc, 0);
     const tp = borderPoint(b, ac, 0);
@@ -102,12 +119,14 @@ export const StudioEdge = memo(function StudioEdge({ id, source, target, data, s
     const sp = borderPoint(a, ctrl);
     const tp = borderPoint(b, ctrl);
     path = `M ${sp.x} ${sp.y} Q ${ctrl.x} ${ctrl.y} ${tp.x} ${tp.y}`;
+    gap = Math.hypot(tp.x - sp.x, tp.y - sp.y);
     lx = 0.25 * sp.x + 0.5 * ctrl.x + 0.25 * tp.x;
     ly = 0.25 * sp.y + 0.5 * ctrl.y + 0.25 * tp.y;
   } else {
     const sp = borderPoint(a, bc);
     const tp = borderPoint(b, ac);
     path = `M ${sp.x} ${sp.y} L ${tp.x} ${tp.y}`;
+    gap = Math.hypot(tp.x - sp.x, tp.y - sp.y);
     lx = (sp.x + tp.x) / 2;
     ly = (sp.y + tp.y) / 2;
   }
@@ -143,8 +162,8 @@ export const StudioEdge = memo(function StudioEdge({ id, source, target, data, s
       {(label || d.order !== undefined || showChip || editing) && (
         <EdgeLabelRenderer>
           <div
-            className="nodrag nopan absolute flex max-w-[200px] items-center gap-1"
-            style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)`, pointerEvents: 'all', opacity: dim ? 0.15 : 1, zIndex: selected ? 5 : 1 }}
+            className="nodrag nopan absolute flex items-center gap-1"
+            style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)`, maxWidth: editing || selected ? 240 : Math.max(64, Math.min(200, gap - 20)), pointerEvents: 'all', opacity: dim ? 0.15 : 1, zIndex: selected ? 5 : 1 }}
             onClick={(e) => {
               e.stopPropagation();
               selectEdge(id, e.shiftKey);
@@ -165,7 +184,7 @@ export const StudioEdge = memo(function StudioEdge({ id, source, target, data, s
             ) : (
               label && (
                 <span
-                  className={cn('truncate rounded border bg-surface px-1.5 py-[1px] text-[11px] font-medium leading-[1.4] text-fg shadow-[0_1px_2px_rgb(0_0_0/0.08)]', selected && 'ring-2 ring-accent/40')}
+                  className={cn('min-w-0 truncate rounded border bg-surface px-1.5 py-[1px] text-[11px] font-medium leading-[1.4] text-fg shadow-[0_1px_2px_rgb(0_0_0/0.08)]', selected && 'ring-2 ring-accent/40')}
                   style={{ borderColor: `color-mix(in srgb, ${color} 45%, var(--line))` }}
                   title={label}
                 >

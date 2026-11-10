@@ -126,6 +126,12 @@ export function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // Dialogs, popovers and tooltips render in portals under <body>; give them the active mode's accent too.
+  useEffect(() => {
+    document.body.classList.remove('mode-atlas', 'mode-theater', 'mode-studio');
+    document.body.classList.add(`mode-${mode}`);
+  }, [mode]);
+
   // First visit: offer the short tour (unless a deep link brought the visitor to something specific).
   useEffect(() => {
     if (!tourSeen && !/[?&](sel|s)=/.test(window.location.hash)) useApp.getState().setHelp('tour');

@@ -107,7 +107,7 @@ function Tour({ onClose }: { onClose: () => void }) {
       }
     >
       <p className="mb-3 mt-0 text-[13px] leading-relaxed text-fg-muted">
-        Three ways to explore and explain <b className="text-fg">Meridian</b>, a simulated banking platform (customer app, operations simulator, backend API). Everything shown is drawn from one model of the real repository — {stats.entities} components, {stats.relations} relationships, {stats.contracts} API contracts and {stats.scenarios} step-by-step scenarios — each linked to the source lines it came from.
+        Three ways to explore and explain <b className="text-fg">Meridian</b>, a simulated banking platform (customer app, operations simulator, backend API). Everything shown is drawn from one model of the real repository — {stats.entities.toLocaleString('en-US')} components, {stats.relations.toLocaleString('en-US')} relationships, {stats.contracts} API contracts and {stats.scenarios} step-by-step scenarios — each linked to the source lines it came from.
       </p>
       <div className="grid gap-3 md:grid-cols-3">
         {MODES.map((m) => {

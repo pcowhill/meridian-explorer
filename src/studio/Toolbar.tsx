@@ -70,6 +70,9 @@ import {
 } from './commands';
 import { usePrefs } from './prefs';
 import { useStudio } from './store';
+import { formatKeys } from '@/shell/hotkeys';
+
+const fk = (k: string) => formatKeys(k)[0];
 import { useStudioUi } from './ui';
 
 const Sep = () => <span className="mx-1 h-5 w-px shrink-0 bg-line" aria-hidden />;
@@ -88,10 +91,10 @@ export function TopToolbar() {
       </IconButton>
       <BoardSwitcher />
       <Sep />
-      <IconButton label="Undo" keys="mod+Z" disabled={!canUndo} onClick={() => useStudio.getState().undo()}>
+      <IconButton label="Undo" keys={fk('mod+Z')} disabled={!canUndo} onClick={() => useStudio.getState().undo()}>
         <Undo2 size={16} />
       </IconButton>
-      <IconButton label="Redo" keys="mod+shift+Z" disabled={!canRedo} onClick={() => useStudio.getState().redo()}>
+      <IconButton label="Redo" keys={fk('mod+shift+Z')} disabled={!canRedo} onClick={() => useStudio.getState().redo()}>
         <Redo2 size={16} />
       </IconButton>
       <Sep />
@@ -111,7 +114,7 @@ export function TopToolbar() {
         <Spline size={16} />
       </IconButton>
       <Sep />
-      <IconButton label="Duplicate" keys="mod+D" disabled={!hasSelection} onClick={() => useStudio.getState().duplicateSelection()}>
+      <IconButton label="Duplicate" keys={fk('mod+D')} disabled={!hasSelection} onClick={() => useStudio.getState().duplicateSelection()}>
         <Copy size={16} />
       </IconButton>
       <IconButton label="Delete" keys="Del" disabled={!hasSelection} onClick={() => useStudio.getState().deleteSelection()}>
@@ -119,7 +122,7 @@ export function TopToolbar() {
       </IconButton>
       <Sep />
       <GenerateMenu />
-      <IconButton label="Add hypothetical component" keys="shift+H" onClick={() => setUi({ hypoOpen: true })} className="text-hypo!">
+      <IconButton label="Add hypothetical component" keys={fk('shift+H')} onClick={() => setUi({ hypoOpen: true })} className="text-hypo!">
         <FlaskConical size={16} />
       </IconButton>
       <HiddenMenu />
@@ -310,7 +313,7 @@ const GEN: { kind: GenerateKind; label: string; hint: string; icon: React.ReactN
   { kind: 'children', label: 'Add children', hint: 'What it contains', icon: <FolderTree size={13} /> },
   { kind: 'neighbours', label: 'Add neighbours', hint: 'What it talks to and what talks to it', icon: <Share2 size={13} /> },
   { kind: 'sequence', label: 'Sequence diagram from selection', hint: 'A chain, an endpoint or a relationship to one', icon: <Workflow size={13} /> },
-  { kind: 'animate', label: 'Animate path', hint: 'A token travels the selected chain', icon: <Play size={13} />, keys: 'shift+P' },
+  { kind: 'animate', label: 'Animate path', hint: 'A token travels the selected chain', icon: <Play size={13} />, keys: fk('shift+p') },
   { kind: 'before-after', label: 'Before / after comparison', hint: 'Existing frame + editable proposed copy', icon: <GitCompareArrows size={13} /> },
 ];
 
@@ -489,10 +492,10 @@ export function ViewBar() {
     <div className="studio-overlay pointer-events-auto flex items-center gap-0.5 rounded-lg border border-line bg-surface p-1 shadow-pop" role="toolbar" aria-label="View">
       {presenting && (
         <>
-          <IconButton label="Undo" keys="mod+Z" size="sm" disabled={!canUndo} onClick={() => useStudio.getState().undo()} tipSide="top">
+          <IconButton label="Undo" keys={fk('mod+Z')} size="sm" disabled={!canUndo} onClick={() => useStudio.getState().undo()} tipSide="top">
             <Undo2 size={14} />
           </IconButton>
-          <IconButton label="Redo" keys="mod+shift+Z" size="sm" disabled={!canRedo} onClick={() => useStudio.getState().redo()} tipSide="top">
+          <IconButton label="Redo" keys={fk('mod+shift+Z')} size="sm" disabled={!canRedo} onClick={() => useStudio.getState().redo()} tipSide="top">
             <Redo2 size={14} />
           </IconButton>
           <Sep />
@@ -517,7 +520,7 @@ export function ViewBar() {
       <IconButton label="Highlight path" size="sm" active={focus?.mode === 'path'} onClick={highlightPath} tipSide="top">
         <Route size={14} />
       </IconButton>
-      <IconButton label="Animate path" keys="shift+P" size="sm" onClick={startAnimation} tipSide="top">
+      <IconButton label="Animate path" keys={fk('shift+P')} size="sm" onClick={startAnimation} tipSide="top">
         <Play size={14} />
       </IconButton>
       <FrameReveal />

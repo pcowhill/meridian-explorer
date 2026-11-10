@@ -37,6 +37,9 @@ import { quickWidgets } from './logic/widgets';
 import { openWidget } from './Palette';
 import { usePrefs } from './prefs';
 import { useStudio } from './store';
+import { formatKeys } from '@/shell/hotkeys';
+
+const fk = (k: string) => formatKeys(k)[0];
 import { COLOR_TOKENS, tokenCss } from './style';
 import { NODE_TYPE_LABEL, type ArrowMode, type CalloutPointer, type ColorToken, type EdgeData, type NodeStyle, type Routing, type SEdge, type SNode, type StrokeStyle, type TextSize } from './types';
 
@@ -44,7 +47,13 @@ const STYLED = new Set(['shape', 'text', 'note', 'callout', 'frame', 'entity']);
 const TEXTUAL = new Set(['shape', 'text', 'note', 'callout', 'frame', 'entity']);
 
 export function SelectionPanel() {
-  const nodes = useStudio(useShallow((s) => s.nodes.filter((n) => n.selected)));
+  // Select only what the panel shows (id, type, data) so dragging the selection does not re-render it.
+  const flat = useStudio(useShallow((s) => s.nodes.filter((n) => n.selected).flatMap((n) => [n.id, n.type, n.data] as unknown[])));
+  const nodes = useMemo(() => {
+    const out: SNode[] = [];
+    for (let i = 0; i < flat.length; i += 3) out.push({ id: flat[i] as string, type: flat[i + 1] as SNode['type'], data: flat[i + 2] as SNode['data'], position: { x: 0, y: 0 } });
+    return out;
+  }, [flat]);
   const edges = useStudio(useShallow((s) => s.edges.filter((e) => e.selected)));
   const expanded = usePrefs((s) => s.panelExpanded);
   const setPrefs = usePrefs((s) => s.set);
@@ -90,7 +99,7 @@ function Actions({ nodes, edges }: { nodes: SNode[]; edges: SEdge[] }) {
   return (
     <div className="flex flex-wrap border-b border-line px-1.5 py-1.5">
       {nodes.length > 0 && (
-        <IconButton label="Duplicate" keys="mod+D" size="sm" onClick={() => s.duplicateSelection()}>
+        <IconButton label="Duplicate" keys={fk('mod+D')} size="sm" onClick={() => s.duplicateSelection()}>
           <Copy size={14} />
         </IconButton>
       )}
@@ -108,7 +117,7 @@ function Actions({ nodes, edges }: { nodes: SNode[]; edges: SEdge[] }) {
           <IconButton label="Send to back" size="sm" onClick={() => s.zOrder('back')}>
             <ArrowDownToLine size={14} />
           </IconButton>
-          <IconButton label="Group into frame" keys="mod+G" size="sm" onClick={() => s.groupSelection()}>
+          <IconButton label="Group into frame" keys={fk('mod+G')} size="sm" onClick={() => s.groupSelection()}>
             <Frame size={14} />
           </IconButton>
         </>
