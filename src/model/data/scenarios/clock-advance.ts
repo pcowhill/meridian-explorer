@@ -561,7 +561,7 @@ function accrualSteps(v: Month): ScenarioStep[] {
       narrative: `In one transaction per account, \`postInterest\` writes a bank-originated, POSTED \`interest\` credit of ${fmt(i)} on Goal Savings, dated at the anniversary (${TO_MONTH}). Interest is the only origin here that changes the system-wide settled total.`,
       audience: {
         executive: `The savings account earns ${fmt(i)} of simulated interest.`,
-        'end-user': `Avery\'s Goal Savings shows "Interest earned (simulated)" +${fmt(i)}.`,
+        'end-user': `Avery's Goal Savings shows "Interest earned (simulated)" +${fmt(i)}.`,
         dba: 'INSERT LedgerEntry, origin interest, status posted, postedAt = createdAt = the simulated anniversary.',
       },
       detail: 1,
