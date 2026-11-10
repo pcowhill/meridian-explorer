@@ -104,6 +104,36 @@ test.describe('Explanation Studio', () => {
     await expect(inspector(page).locator('[data-confidence="hypothetical"]').first()).toBeVisible();
   });
 
+  test('things related only through an intermediate get a dotted "via" link that can be expanded (Scenario F)', async ({ page }) => {
+    await open(page, '#/studio?layers=layer:simpay');
+    await page.getByTestId('help-button').click();
+    await page.getByRole('menuitem', { name: /Guided questions/ }).click();
+    await page.getByTestId('question-q-integration-studio').click();
+    await expect(entityNode(page, 'ep:POST /api/movements')).toBeVisible();
+    await addFromPalette(page, 'SimPay', 'hypo:simpay');
+    await expect(page.getByTestId('hypo-legend')).toBeVisible();
+
+    const indirect = page.locator('[data-testid="studio-edge"][data-status="indirect"]');
+    await expect(indirect.first()).toBeAttached();
+    const before = await nodes(page).count();
+    await indirect.first().click({ force: true });
+    await page.getByTestId('expand-indirect').click();
+    // The intermediate lands on the board and the dotted link is replaced by the real ones.
+    await expect.poll(() => nodes(page).count()).toBe(before + 1);
+    await expect(page.locator('[data-testid="studio-edge"][data-status="hypothetical"]').first()).toBeAttached();
+  });
+
+  test('a line drawn between unrelated components is marked as not in Meridian', async ({ page }) => {
+    await open(page, '#/studio');
+    await addFromPalette(page, 'Wallet', 'cu:pages/Wallet');
+    await addFromPalette(page, 'SimulationClock', 'db:SimulationClock');
+    await expect(edges(page)).toHaveCount(0);
+    await page.getByRole('button', { name: 'Connect mode' }).click();
+    await entityNode(page, 'cu:pages/Wallet').click();
+    await entityNode(page, 'db:SimulationClock').click();
+    await expect(page.locator('[data-testid="studio-edge"][data-status="unverified"]')).toHaveCount(1);
+  });
+
   test('the board exports to JSON', async ({ page }) => {
     await open(page, '#/studio');
     await addFromPalette(page, 'createTransfer', 'be:money/movements#createTransfer');

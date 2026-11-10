@@ -140,6 +140,25 @@ test.describe('Architecture Atlas', () => {
     await expect(inspector(page).locator('[data-confidence="hypothetical"]').first()).toBeVisible();
   });
 
+  test('from a feature down to source code without losing the thread (Scenario E)', async ({ page }) => {
+    await open(page, '#/atlas?aud=developer&d=4');
+    // The Features lens highlights what implements a feature and opens the path to it.
+    await page.getByRole('button', { name: /Features lens/i }).click();
+    await page.locator('[data-feature="feat:schedules"]').click();
+    expect(page.url()).toContain('meridian');
+    await searchAndPick(page, 'POST /api/schedules', 'entity:ep:POST /api/schedules');
+    await expect(node(page, 'ep:POST /api/schedules')).toBeVisible();
+    await inspector(page).getByRole('tab', { name: /Contract/ }).click();
+    await expect(page.getByTestId('contract-flow')).toContainText(/validate/i);
+    // Follow the handler's flow to the service function, then to its code.
+    await page.getByTestId('contract-flow').locator('button', { hasText: /createSchedule/ }).first().click();
+    await page.getByTestId('contract-flow').locator('[data-entity^="be:scheduler/schedules#"]').first().click();
+    await expect(inspectorTitle(page)).toContainText('createSchedule');
+    await inspector(page).getByRole('tab', { name: /Code/ }).click();
+    await expect(page.getByTestId('code-block').first()).toContainText('createSchedule');
+    await expect(inspector(page).getByRole('navigation', { name: 'Location' })).toContainText('Backend API');
+  });
+
   test('a related workflow opens in the Theater from the Atlas', async ({ page }) => {
     await open(page, '#/atlas?x=meridian,backend,be.http,be:routes/money&sel=e:ep:POST%20/api/transfers');
     await inspector(page).getByRole('tab', { name: /Workflows/ }).click();

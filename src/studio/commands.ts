@@ -172,7 +172,8 @@ export function addEntity(entityId: string, at?: Point | null): string | null {
   const p = at ? { x: at.x - s.w / 2, y: at.y - s.h / 2 } : spotFor(model, st().nodes, entityId, viewCenter());
   const node = makeNode('entity', p, { entityId });
   st().addNodes([node], [], { autoConnect: usePrefs.getState().autoConnect });
-  useApp.getState().selectEntity(entityId);
+  // Adding should not pop the inspector open (it would shrink the canvas mid-construction); follow along only if it is already showing something.
+  if (useApp.getState().selection) useApp.getState().selectEntity(entityId);
   if (!at) ensureVisible({ x: p.x, y: p.y, w: s.w, h: s.h });
   return node.id;
 }

@@ -75,8 +75,8 @@ function ModeSwitch() {
               )}
             >
               <Icon size={14} />
-              <span className="hidden xl:inline">{m.label}</span>
-              <span className="hidden sm:inline xl:hidden">{m.label.split(' ')[1]}</span>
+              <span className="hidden min-[1560px]:inline">{m.label}</span>
+              <span className="hidden sm:inline min-[1560px]:hidden">{m.label.split(' ')[1]}</span>
             </button>
           </Tip>
         );
@@ -100,7 +100,7 @@ function AudienceControl() {
           <Tip label="Who are you explaining to? Sets terminology and a starting level of detail." keys="A">
             <button type="button" data-testid="audience-button" className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-line bg-surface px-2 text-[12.5px] font-medium hover:bg-surface-2" {...p}>
               <Users size={13} className="text-fg-muted" />
-              <span className="hidden text-fg-subtle 2xl:inline">Audience</span>
+              <span className="hidden text-fg-subtle min-[1840px]:inline">Audience</span>
               <span className="whitespace-nowrap">{current.short}</span>
               <ChevronDown size={12} className="text-fg-subtle" />
             </button>
@@ -142,7 +142,7 @@ function AudienceControl() {
                 <button key={n} type="button" tabIndex={-1} onClick={() => setDetail(n as DetailLevel)} className={cn('h-3.5 w-[5px] rounded-sm transition-colors', n <= detail ? 'bg-accent' : 'bg-line-strong')} aria-label={`Set detail ${n}`} />
               ))}
             </span>
-            <span className="hidden w-[84px] truncate text-[11.5px] font-medium text-fg-muted 2xl:inline" data-testid="detail-label">
+            <span className="hidden w-[84px] truncate text-[11.5px] font-medium text-fg-muted min-[1840px]:inline" data-testid="detail-label">
               {DETAIL_LABEL[detail]}
             </span>
           </div>
@@ -329,10 +329,10 @@ export function TopBar() {
   }
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-surface px-3" data-testid="top-bar">
+    <header className="flex h-12 shrink-0 items-center gap-2 overflow-hidden border-b border-line bg-surface px-3" data-testid="top-bar">
       <a href="#/atlas" className="mr-1 flex shrink-0 items-center gap-2 rounded-md pr-1 text-fg no-underline" aria-label="Meridian Explorer home">
         <Logo />
-        <span className="hidden whitespace-nowrap text-[13.5px] font-semibold tracking-tight 2xl:inline">
+        <span className="hidden whitespace-nowrap text-[13.5px] font-semibold tracking-tight min-[1840px]:inline">
           Meridian <span className="font-normal text-fg-muted">Explorer</span>
         </span>
       </a>
@@ -349,11 +349,11 @@ export function TopBar() {
         type="button"
         onClick={() => setCommandOpen(true)}
         data-testid="search-button"
-        className="flex h-8 w-9 shrink-0 items-center gap-2 rounded-md border border-line bg-surface-2 px-2.5 text-left text-[12.5px] text-fg-subtle transition-colors hover:border-line-strong hover:text-fg-muted xl:w-[200px] 2xl:w-[300px]"
+        className="flex h-8 w-9 shrink-0 items-center gap-2 rounded-md border border-line bg-surface-2 px-2.5 text-left text-[12.5px] text-fg-subtle transition-colors hover:border-line-strong hover:text-fg-muted min-[1400px]:w-[180px] min-[2000px]:w-[300px]"
       >
         <Search size={14} className="shrink-0" />
-        <span className="hidden min-w-0 flex-1 truncate xl:inline">Search Meridian…</span>
-        <span className="hidden xl:inline"><kbd>/</kbd></span>
+        <span className="hidden min-w-0 flex-1 truncate min-[1400px]:inline">Search Meridian…</span>
+        <span className="hidden min-[1400px]:inline"><kbd>/</kbd></span>
       </button>
       <div className="min-w-0 flex-1" />
       <AudienceControl />
@@ -361,14 +361,14 @@ export function TopBar() {
       <Tip label="Saved views, bookmarks and recent items" keys="B">
         <button type="button" onClick={() => setHelp('views')} data-testid="views-button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2 text-[12.5px] font-medium hover:bg-surface-2">
           <Bookmark size={13} />
-          <span className="hidden 2xl:inline">Views</span>
+          <span className="hidden min-[1840px]:inline">Views</span>
           {viewCount > 0 && <span className="rounded-full bg-surface-3 px-1.5 text-[10px]">{viewCount}</span>}
         </button>
       </Tip>
       <Tip label="Presenter mode: hide the chrome for screensharing" keys="P">
         <button type="button" onClick={() => setPresenting(true)} data-testid="present-button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2 text-[12.5px] font-medium hover:bg-surface-2">
           <Presentation size={13} />
-          <span className="hidden whitespace-nowrap xl:inline">Present</span>
+          <span className="hidden whitespace-nowrap min-[1400px]:inline">Present</span>
         </button>
       </Tip>
       <HelpMenu />

@@ -41,7 +41,13 @@ describe('Explanation Studio', () => {
     expect(hit).toBeTruthy();
     fireEvent.click(hit);
     expect(useStudio.getState().nodes.map((n) => n.data.entityId)).toContain('ep:POST /api/transfers');
-    expect(useApp.getState().selection).toEqual({ type: 'entity', id: 'ep:POST /api/transfers' });
+    // Adding does not pop the inspector open while nothing is being inspected…
+    expect(useApp.getState().selection).toBeNull();
+    // …but follows along once the inspector is showing something.
+    act(() => useApp.getState().selectEntity('backend'));
+    fireEvent.change(screen.getByTestId('palette-search'), { target: { value: 'LedgerEntry' } });
+    fireEvent.click(document.querySelector('[data-palette-entity="db:LedgerEntry"]') as HTMLElement);
+    expect(useApp.getState().selection).toEqual({ type: 'entity', id: 'db:LedgerEntry' });
   });
 
   it('consumes the cross-mode inbox and places the request', () => {

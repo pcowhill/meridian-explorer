@@ -225,8 +225,8 @@ you are looking at here.
 
 **Palette** (left):
 
-- **Meridian** — search or browse by kind; click to add at the centre of the
-  view, or drag onto the canvas. With **Auto-connect known relationships** on,
+- **Meridian** — search or browse by kind; click to add (it lands beside the
+  things it relates to), or drag onto the canvas. With **Auto-connect known relationships** on,
   a component arrives already connected to whatever on the board it really
   relates to, with labels taken from the model.
 - **Shapes** — text, sticky note, rectangle and other shapes, callout, frame.
@@ -256,7 +256,11 @@ related becomes a **known relationship** — click it and the inspector shows
 the protocol, data and source. A line you draw between components that are
 *not* related in the model is drawn dashed and purple as **proposed**, with an
 offer to record it as a hypothetical relationship: a hand-drawn line never
-looks like a verified fact.
+looks like a verified fact. When a component you add is related to something
+on the board only *through* another component that is not there (a page and
+the endpoint it reaches via a client function, say), a thin dotted **via …**
+link appears; select it and choose **Add … to the board** to bring the
+intermediate in and replace the dotted link with the real relationships.
 
 **Generate** (toolbar) — the one-click constructions:
 
