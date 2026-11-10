@@ -62,7 +62,7 @@ function Row({ f, depth, highlight, db, onPick, picked, proposed }: { f: FieldDe
         data-field={f.name}
       >
         <td className="py-1.5 pl-2 pr-2" style={{ paddingLeft: 8 + depth * 14 }}>
-          <button type="button" disabled={!onPick} onClick={() => onPick?.(f)} className={cn('flex items-center gap-1 text-left font-mono text-[11.5px] font-semibold text-fg', onPick && 'hover:underline')}>
+          <button type="button" disabled={!onPick} onClick={() => onPick?.(f)} className={cn('flex max-w-full items-center gap-1 text-left font-mono text-[11.5px] font-semibold text-fg [overflow-wrap:anywhere]', onPick && 'hover:underline')}>
             {db && f.primaryKey && (
               <Tip label="Primary key" side="top">
                 <KeyRound size={11} className="text-[color:var(--k-event)]" />
@@ -78,7 +78,7 @@ function Row({ f, depth, highlight, db, onPick, picked, proposed }: { f: FieldDe
             {proposed && <span className="ml-1 rounded border border-dashed border-hypo px-1 font-sans text-[9.5px] font-semibold uppercase text-hypo">proposed</span>}
           </button>
         </td>
-        <td className="py-1.5 pr-2 font-mono text-[11px] text-[color:var(--k-type)]">
+        <td className="py-1.5 pr-2 font-mono text-[11px] text-[color:var(--k-type)] [overflow-wrap:anywhere]">
           <span className="break-words">{f.type}</span>
           {f.typeRef && (
             <div className="mt-0.5">
@@ -91,7 +91,7 @@ function Row({ f, depth, highlight, db, onPick, picked, proposed }: { f: FieldDe
             </div>
           )}
         </td>
-        <td className="py-1.5 pr-2 text-[11.5px] text-fg-muted">
+        <td className="py-1.5 pr-2 text-[11.5px] text-fg-muted [overflow-wrap:anywhere]">
           {renderInline(f.description)}
           {f.values && (
             <div className="mt-1 flex flex-wrap gap-1">
@@ -130,7 +130,7 @@ export function FieldTable({ fields, highlight, db, onPick, picked, proposed }: 
   if (!fields.length && !proposed?.length) return <div className="text-[12px] italic text-fg-subtle">No fields.</div>;
   return (
     <div className="overflow-x-auto rounded-md border border-line">
-      <table className="w-full border-collapse text-left" data-testid="field-table">
+      <table className="w-full table-fixed border-collapse text-left" data-testid="field-table">
         <thead>
           <tr className="bg-surface-2 text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">
             <th className="w-[30%] py-1 pl-2 pr-2">{db ? 'Column' : 'Field'}</th>
