@@ -19,9 +19,17 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import { SLICES } from '../src/model/data/index';
+import { SLICES as BASE_SLICES } from '../src/model/data/index';
+import { simpayLayer } from '../src/state/layers/simpay';
 import { REPO } from '../src/model/data/core';
 import type { Contract, Entity, FieldDef, ModelSlice, Relation, Scenario, SourceRef, StateMachine } from '../src/model/types';
+
+// Shipped example layers are checked like slices (their ids, references and cited sources must be real too).
+const SLICES: Record<string, ModelSlice> = {
+  ...BASE_SLICES,
+  [simpayLayer.id]: { entities: simpayLayer.entities, relations: simpayLayer.relations, contracts: simpayLayer.contracts, scenarios: simpayLayer.scenarios },
+};
+const modificationTargets = simpayLayer.modifications.map((m) => m.target);
 
 const args = process.argv.slice(2);
 const sliceFilter = args.includes('--slice') ? args[args.indexOf('--slice') + 1] : null;
@@ -167,7 +175,7 @@ for (const [name, slice] of Object.entries(SLICES) as [string, ModelSlice][]) {
     if (!ent) err(name, where, 'no endpoint entity with this id');
     else if (ent.kind !== 'endpoint') err(name, where, `entity kind is ${ent.kind}, expected endpoint`);
     if (c.id !== `ep:${c.method} ${c.path}`) err(name, where, `id should be "ep:${c.method} ${c.path}"`);
-    if (!c.sources?.length) err(name, where, 'contract has no sources');
+    if (!c.sources?.length && c.confidence !== 'hypothetical') err(name, where, 'contract has no sources');
     (c.sources ?? []).forEach((s) => checkSource(name, where, s));
     need(name, where, 'bodyTypeRef', c.bodyTypeRef);
     checkFields(name, `${where} body`, c.body);
@@ -247,6 +255,8 @@ for (const [name, slice] of Object.entries(SLICES) as [string, ModelSlice][]) {
     (g.related ?? []).forEach((id) => need(name, `glossary ${g.term}`, 'related', id));
   }
 }
+
+for (const t of modificationTargets) if (!entities.has(t)) err(simpayLayer.id, 'modification', `target → unknown entity "${t}"`);
 
 // ---- Report -----------------------------------------------------------------
 const shown = sliceFilter ? issues.filter((i) => i.slice === sliceFilter) : issues;

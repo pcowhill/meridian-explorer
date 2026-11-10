@@ -3,9 +3,17 @@ import type { ModelSlice } from '../../types';
 import { scenario as accountBalances } from './account-balances';
 import { scenario as accountOpening } from './account-opening';
 import { scenario as appCommunication } from './app-communication';
+import { scenario as cardLost } from './card-lost';
+import { scenario as clockAdvance } from './clock-advance';
+import { scenario as dispute } from './dispute';
+import { scenario as externalMovement } from './external-movement';
 import { scenario as fraudAlert } from './fraud-alert';
+import { scenario as loanAndInterest } from './loan-and-interest';
 import { scenario as login } from './login';
 import { scenario as movementReversal } from './movement-reversal';
 import { scenario as opsApproval } from './ops-approval';
+import { scenario as scheduledPayment } from './scheduled-payment';
+import { scenario as transactionValidation } from './transaction-validation';
+import { scenario as transfer } from './transfer';
 
-export const slice: ModelSlice = { scenarios: [accountBalances, accountOpening, appCommunication, fraudAlert, login, movementReversal, opsApproval] };
+export const slice: ModelSlice = { scenarios: [accountBalances, accountOpening, appCommunication, cardLost, clockAdvance, dispute, externalMovement, fraudAlert, loanAndInterest, login, movementReversal, opsApproval, scheduledPayment, transactionValidation, transfer] };

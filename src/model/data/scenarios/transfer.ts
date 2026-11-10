@@ -255,22 +255,24 @@ const steps: ScenarioStep[] = [
     }),
 
   // ---- Client side ----------------------------------------------------------
-  step('client-validate', 'validate', PAGE, VAL, 'Validate in the browser', 'validateTransfer(form)',
-    '`handleSubmit` converts the typed dollars with `parseAmountMinor` (`toMinor` rounds to whole cents) and calls the shared `validateTransfer` — the same function the server runs. It checks the shape only: both ids present and different, amount an integer between 1 and 5,000,000 minor units ($0.01–$50,000), memo trimmed and cut to 140 characters. It passes, so the field errors are cleared and the button switches to "Transferring…".',
-    {
-      detail: 3,
-      variants: FORM,
-      payload: { title: 'validateTransfer input', format: 'args', data: { fromAccountId: CHK, toAccountId: SAV, amountMinor: AMOUNT, memo: MEMO }, typeRef: 'sh:money-movement#TransferRequest', highlight: ['amountMinor'] },
-      sources: [src(F.page, 383, 400, 'const check = validateTransfer({'), src(F.page, 262, 268, 'function parseAmountMinor'), src(F.shMove, 200, 224, 'export function validateTransfer')],
-    }),
-  step('client-send', 'client', PAGE, LIB, 'Call the money client', 'createTransfer(check.value)',
-    'The page passes the validator\'s normalized value to `createTransfer` in `lib/money.ts`. `postMoney` builds the fetch with `jsonInit`: `credentials: "include"` so the httpOnly `mer_session` cookie rides along, `Content-Type: application/json`, and `csrfHeaders()`, which reads the non-httpOnly `mer_csrf` cookie from `document.cookie` and echoes it as `x-meridian-csrf`. The customer app sends no surface header, so the backend uses the customer cookie.',
-    {
-      detail: 3,
-      variants: FORM,
-      payload: { title: 'NormalizedTransfer', format: 'args', data: BODY, typeRef: 'sh:money-movement#NormalizedTransfer', highlight: ['memo'] },
-      sources: [src(F.page, 401, 401, 'await createTransfer(check.value)'), src(F.lib, 40, 47, 'const jsonInit'), src(F.lib, 122, 128, 'export function createTransfer'), src(F.cuCsrf, 39, 42, 'export function csrfHeaders')],
-    }),
+  ...split(FORM, (g) =>
+    step('client-validate', 'validate', PAGE, VAL, 'Validate in the browser', 'validateTransfer(form)',
+      '`handleSubmit` converts the typed dollars with `parseAmountMinor` (`toMinor` rounds to whole cents) and calls the shared `validateTransfer` — the same function the server runs. It checks the shape only: both ids present and different, amount an integer between 1 and 5,000,000 minor units ($0.01–$50,000), memo trimmed and cut to 140 characters. It cannot see balances, so it passes; the field errors are cleared and the button switches to "Transferring…".',
+      {
+        detail: 3,
+        payload: { title: 'validateTransfer input', format: 'args', data: g.body, typeRef: 'sh:money-movement#TransferRequest', highlight: ['amountMinor'] },
+        sources: [src(F.page, 383, 400, 'const check = validateTransfer({'), src(F.page, 262, 268, 'function parseAmountMinor'), src(F.shMove, 200, 224, 'export function validateTransfer')],
+      }),
+  ),
+  ...split(FORM, (g) =>
+    step('client-send', 'client', PAGE, LIB, 'Call the money client', 'createTransfer(check.value)',
+      'The page passes the validator\'s normalized value to `createTransfer` in `lib/money.ts`. `postMoney` builds the fetch with `jsonInit`: `credentials: "include"` so the httpOnly `mer_session` cookie rides along, `Content-Type: application/json`, and `csrfHeaders()`, which reads the non-httpOnly `mer_csrf` cookie from `document.cookie` and echoes it as `x-meridian-csrf`. The customer app sends no surface header, so the backend uses the customer cookie.',
+      {
+        detail: 3,
+        payload: { title: 'NormalizedTransfer', format: 'args', data: g.body, typeRef: 'sh:money-movement#NormalizedTransfer', highlight: ['amountMinor'] },
+        sources: [src(F.page, 401, 401, 'await createTransfer(check.value)'), src(F.lib, 40, 47, 'const jsonInit'), src(F.lib, 122, 128, 'export function createTransfer'), src(F.cuCsrf, 39, 42, 'export function csrfHeaders')],
+      }),
+  ),
 
   request('request', OK, LIB, HEADERS_OK, BODY, 'POST the transfer',
     'One HTTPS POST with a JSON body. The amount travels as integer minor units (25000), never as a decimal string.',
@@ -318,15 +320,24 @@ const steps: ScenarioStep[] = [
     }),
 
   // ---- Route preHandlers -------------------------------------------------------
-  step('require-auth', 'guard', EP, AUTH, 'Resolve the session', 'requireAuth',
-    'First preHandler of the route (`guarded = { preHandler: [requireAuth, rateLimit("money")] }`). It reads the customer cookie `mer_session`, hashes the token and looks the session up with its user. The session is live, so its idle timeout slides forward 8 hours and `req.user` becomes { id, email, displayName, role }.',
+  step('require-auth-none', 'guard', EP, AUTH, 'Look for a session', 'requireAuth',
+    'First preHandler of the route (`guarded = { preHandler: [requireAuth, rateLimit("money")] }`). It reads the customer cookie `mer_session` — and finds none.',
     {
       detail: 3,
-      variants: PAST_CSRF,
-      audience: { dba: 'SELECT Session by tokenHash (with User), then UPDATE Session SET lastSeenAt = now, expiresAt = now + 8h — wall-clock time, not simulated time.' },
-      payload: { title: 'req.user', format: 'return', data: { id: AVERY.id, email: AVERY.email, displayName: AVERY.displayName, role: AVERY.role }, typeRef: 'sh:auth#SessionUser', highlight: ['id'] },
-      sources: [src(F.route, 64, 66, "rateLimit('money')"), src(F.guards, 47, 66, 'export const requireAuth'), src(F.sessions, 50, 72, 'export async function resolveSession')],
+      variants: [NOAUTH],
+      payload: { title: 'req.user', format: 'return', data: null, typeRef: 'sh:auth#SessionUser' },
+      sources: [src(F.route, 64, 66, "rateLimit('money')"), src(F.guards, 47, 53, 'export const requireAuth')],
     }),
+  ...split(PAST_AUTH, (g) =>
+    step('require-auth', 'guard', EP, AUTH, 'Resolve the session', 'requireAuth',
+      `First preHandler of the route (\`guarded = { preHandler: [requireAuth, rateLimit("money")] }\`). It reads the customer cookie \`mer_session\`, hashes the token and looks the session up with its user. ${g.user.displayName}'s session is live, so its idle timeout slides forward 8 hours and \`req.user\` becomes { id, email, displayName, role }.`,
+      {
+        detail: 3,
+        audience: { dba: 'SELECT Session by tokenHash (with User), then UPDATE Session SET lastSeenAt = now, expiresAt = now + 8h — wall-clock time, not simulated time.' },
+        payload: { title: 'req.user', format: 'return', data: g.user, typeRef: 'sh:auth#SessionUser', highlight: ['id', 'role'] },
+        sources: [src(F.route, 64, 66, "rateLimit('money')"), src(F.guards, 47, 66, 'export const requireAuth'), src(F.sessions, 50, 72, 'export async function resolveSession')],
+      }),
+  ),
   step('auth-decision', 'decision', AUTH, AUTH, 'Is there a live session?', 'session?',
     'No `mer_session` cookie means 401 `unauthenticated`; a cookie whose session is revoked, expired or belongs to a disabled user means 401 `session_expired` and the cookie is cleared.',
     {
@@ -367,27 +378,32 @@ const steps: ScenarioStep[] = [
     }),
   nothingWritten('auth-end', NOAUTH, 'Rejected at the auth guard. No LedgerEntry, AuditLog or Session row is written; both balances are unchanged.'),
 
-  step('rate-limit', 'guard', EP, ABUSE, 'Per-user money budget', "rateLimit('money')",
-    'Second preHandler. In public-demo mode it counts this request against the `money` bucket — 30 requests per 5 minutes, keyed by `user:<id>` because `requireAuth` has already set `req.user` — and answers 429 `rate_limited` past the budget. With abuse protection off it does nothing.',
-    {
-      detail: 4,
-      variants: PAST_AUTH,
-      payload: { title: 'Bucket rule (public demo only)', format: 'json', data: { bucket: 'money', max: 30, windowMs: 300000, key: `user:${IDS.avery}` }, typeRef: 'sh:public-demo#RateLimitRule', highlight: ['key'] },
-      sources: [src(F.rate, 158, 168, 'export function rateLimit'), src(F.rate, 137, 140, 'export function clientKey'), src(F.shDemo, 91, 92, 'money: { max: 30')],
-    }),
+  ...split(PAST_AUTH, (g) =>
+    step('rate-limit', 'guard', EP, ABUSE, 'Per-user money budget', "rateLimit('money')",
+      'Second preHandler. In public-demo mode it counts this request against the `money` bucket — 30 requests per 5 minutes, keyed by `user:<id>` because `requireAuth` has already set `req.user` — and answers 429 `rate_limited` past the budget. With abuse protection off it does nothing.',
+      {
+        detail: 4,
+        payload: { title: 'Bucket rule (public demo only)', format: 'json', data: { bucket: 'money', max: 30, windowMs: 300000, key: `user:${g.user.id}` }, typeRef: 'sh:public-demo#RateLimitRule', highlight: ['key'] },
+        sources: [src(F.rate, 158, 168, 'export function rateLimit'), src(F.rate, 137, 140, 'export function clientKey'), src(F.shDemo, 91, 92, 'money: { max: 30')],
+      }),
+  ),
 
   // ---- Handler ---------------------------------------------------------------------
   step('coerce', 'validate', EP, EP, 'Coerce and cap the body', 'typeof checks + slice(0, 500)',
     'The handler never trusts the body\'s types: ids and memo are kept only if they are strings and are cut to 500 characters; `amountMinor` is kept only if it is already a number. Anything else becomes `undefined`, which the validator then reports as missing.',
     { detail: 4, variants: PAST_AUTH, sources: [src(F.route, 30, 30, 'const MAX_FIELD = 500'), src(F.route, 67, 73, "typeof body.amountMinor === 'number'")] }),
-  step('server-validate', 'validate', EP, VAL, 'Validate on the server', 'validateTransfer(body)',
-    'The same shared `validateTransfer` the form ran. It cannot know about ownership or balances — those need the database — so it checks shape only and returns the normalized value (trimmed ids, memo trimmed to 140 characters or null).',
-    {
-      detail: 3,
-      variants: PAST_AUTH,
-      payload: { title: 'Validation result', format: 'return', data: { ok: true, errors: {}, value: BODY }, typeRef: 'sh:money-movement#NormalizedTransfer', highlight: ['ok'] },
-      sources: [src(F.route, 68, 73, 'const check = validateTransfer({'), src(F.shMove, 194, 224, 'export function validateTransfer')],
-    }),
+  ...split(PAST_AUTH, (g) =>
+    step('server-validate', 'validate', EP, VAL, 'Validate on the server', 'validateTransfer(body)',
+      'The same shared `validateTransfer` the form ran. It cannot know about ownership or balances — those need the database — so it checks shape only and returns the normalized value (trimmed ids, memo trimmed to 140 characters or null).',
+      {
+        detail: 3,
+        payload:
+          g.suffix === '-same'
+            ? { title: 'Validation result', format: 'return', data: { ok: false, errors: { toAccountId: 'Choose two different accounts.' } }, typeRef: 'sh:money-movement#TransferField', highlight: ['errors.toAccountId'] }
+            : { title: 'Validation result', format: 'return', data: { ok: true, errors: {}, value: g.body }, typeRef: 'sh:money-movement#NormalizedTransfer', highlight: ['ok'] },
+        sources: [src(F.route, 68, 73, 'const check = validateTransfer({'), src(F.shMove, 194, 224, 'export function validateTransfer')],
+      }),
+  ),
   step('validate-decision', 'decision', VAL, VAL, 'Is the body well-formed?', 'check.ok?',
     'Rules: `fromAccountId` present; `toAccountId` present and different from the source; `amountMinor` an integer from 1 to 5,000,000; memo optional.',
     {
@@ -416,28 +432,37 @@ const steps: ScenarioStep[] = [
       payload: { title: 'now', format: 'return', data: SIM_NOW, typeRef: 'db:SimulationClock' },
       sources: [src(F.route, 78, 78, 'await simulationNow(prisma)'), src(F.clock, 53, 60, 'export async function simulationNow')],
     }),
-  step('call-service', 'call', EP, SVC, 'Call the money service', 'createTransfer(user, value, now)',
-    'The handler hands the authenticated user, the normalized transfer and the simulated now to `createTransfer` in `money/movements.ts`. Any `MovementError` it throws is mapped to an HTTP status by `handleMovementError`.',
-    {
-      detail: 3,
-      variants: PAST_VALIDATOR,
-      payload: { title: 'createTransfer arguments', format: 'args', data: { user: { id: AVERY.id, role: AVERY.role, displayName: AVERY.displayName }, input: BODY, now: SIM_NOW }, typeRef: 'sh:money-movement#NormalizedTransfer', highlight: ['input.amountMinor'] },
-      sources: [src(F.route, 77, 78, 'createTransfer(req.user!, check.value'), src(F.movements, 170, 181, 'export async function createTransfer')],
-    }),
+  ...split(PAST_VALIDATOR, (g) =>
+    step('call-service', 'call', EP, SVC, 'Call the money service', 'createTransfer(user, value, now)',
+      'The handler hands the authenticated user, the normalized transfer and the simulated now to `createTransfer` in `money/movements.ts`. Any `MovementError` it throws is mapped to an HTTP status by `handleMovementError`.',
+      {
+        detail: 3,
+        payload: { title: 'createTransfer arguments', format: 'args', data: { user: g.user, input: g.body, now: SIM_NOW }, typeRef: 'sh:money-movement#NormalizedTransfer', highlight: ['input.amountMinor'] },
+        sources: [src(F.route, 77, 78, 'createTransfer(req.user!, check.value'), src(F.movements, 170, 181, 'export async function createTransfer')],
+      }),
+  ),
 
   // ---- Service checks ---------------------------------------------------------
-  step('access-from', 'db-read', SVC, DB, 'Check the source account', 'requireMovableAccount(from)',
-    '`requireMovableAccount` loads the account with the three ledger columns it needs, then asks `getAccountRelationship`: an `AccountAccess` row for (user, account) decides the relationship; failing that, `Account.userId` = user counts as owner. Only owner, joint or authorized may move money. Avery has an owner grant on Everyday Checking.',
-    {
-      detail: 1,
-      variants: PAST_VALIDATOR,
-      audience: {
-        executive: 'The bank checks that the customer is allowed to use both accounts.',
-        dba: 'SELECT Account (id, name, status) + its LedgerEntry (amountMinor, direction, status); SELECT AccountAccess by the (userId, accountId) unique key; if none, SELECT Account.userId.',
-      },
-      payload: { title: 'Access lookup', format: 'row', data: { id: 'acs_1', userId: IDS.avery, accountId: CHK, relationship: 'owner' }, typeRef: 'db:AccountAccess', highlight: ['relationship'] },
-      sources: [src(F.movements, 114, 132, 'async function requireMovableAccount'), src(F.access, 67, 88, 'export async function getAccountRelationship'), src(F.movements, 67, 67, 'MOVABLE_RELATIONSHIPS')],
-    }),
+  ...split(PAST_VALIDATOR, (g) =>
+    step('access-from', 'db-read', SVC, DB, 'Check the source account', 'requireMovableAccount(from)',
+      `\`requireMovableAccount\` loads the account with the three ledger columns it needs, then asks \`getAccountRelationship\`: an \`AccountAccess\` row for (user, account) decides the relationship; failing that, \`Account.userId\` = user counts as owner. Only owner, joint or authorized may move money. ${
+        g.suffix === '-jordan'
+          ? 'Jordan has no AccountAccess row for Goal Savings and does not own it, so the relationship is null.'
+          : 'Avery has an owner grant on Everyday Checking.'
+      }`,
+      {
+        detail: 1,
+        audience: {
+          executive: 'The bank checks that the customer is allowed to use both accounts.',
+          dba: 'SELECT Account (id, name, status) + its LedgerEntry (amountMinor, direction, status); SELECT AccountAccess by the (userId, accountId) unique key; if none, SELECT Account.userId.',
+        },
+        payload:
+          g.suffix === '-jordan'
+            ? { title: 'getAccountRelationship(usr_jordan, acc_savings)', format: 'return', data: null, typeRef: 'sh:auth#AccountRelationship' }
+            : { title: 'Access lookup', format: 'row', data: { id: 'acs_1', userId: IDS.avery, accountId: CHK, relationship: 'owner' }, typeRef: 'db:AccountAccess', highlight: ['relationship'] },
+        sources: [src(F.movements, 114, 132, 'async function requireMovableAccount'), src(F.access, 67, 88, 'export async function getAccountRelationship'), src(F.movements, 67, 67, 'MOVABLE_RELATIONSHIPS')],
+      }),
+  ),
   step('access-decision', 'decision', SVC, SVC, 'May this user move money here?', 'relationship ∈ owner|joint|authorized?',
     'A missing account throws `not_found` (404). No relationship — or a `viewer` one — throws `forbidden` (403). Jordan has a joint grant on Everyday Checking only, and Goal Savings belongs to Avery, so his relationship to it is null.',
     {
