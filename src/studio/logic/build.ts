@@ -145,7 +145,7 @@ export function placeEntities(model: Model, nodes: readonly SNode[], edges: read
   let layoutEdges: LayoutEdge[] = [];
   if (opts.edges?.length) layoutEdges = opts.edges.map((e) => ({ source: e.from, target: e.to }));
   else if (layoutMode === 'auto') layoutEdges = liftedForBoard(model, new Set(fresh)).map((l) => edgeDataFromLifted(l)).map((x) => ({ source: x.source, target: x.target }));
-  const rel = layoutMode === 'sequence' ? row(items) : layoutMode === 'grid' ? grid(items) : layered(items, layoutEdges);
+  const rel = layoutMode === 'sequence' ? row(items, 170) : layoutMode === 'grid' ? grid(items) : layered(items, layoutEdges, { gapX: 170, gapY: 40 });
 
   const origin = opts.origin ?? clearOrigin(allRects(nodes));
   const titleH = opts.title ? 76 : 0;

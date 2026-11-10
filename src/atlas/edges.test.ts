@@ -39,9 +39,9 @@ describe('toSpec', () => {
   });
 
   it('scales thickness gently', () => {
-    expect(strokeWidth(1)).toBe(1.5);
+    expect(strokeWidth(1)).toBe(1.25);
     expect(strokeWidth(8)).toBeGreaterThan(strokeWidth(2));
-    expect(strokeWidth(10000)).toBe(4.5);
+    expect(strokeWidth(10000)).toBe(3.5);
   });
 
   it('distinguishes HTTP from real-time between Meridian’s top level parts', () => {

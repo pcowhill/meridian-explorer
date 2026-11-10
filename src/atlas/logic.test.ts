@@ -5,7 +5,7 @@ import { toSpec } from './edges';
 import { navigate } from './nav';
 import { layoutScene } from './scene';
 import { zoomBand } from './store';
-import { ensureVisible, fitRect, inView } from './viewport';
+import { afterExpand, CHROME, ensureVisible, fitRect, frameSelection, inView, placeRect, READABLE_ZOOM } from './viewport';
 import { computeVisible } from './visibility';
 
 const tree = computeVisible(baseModel, {
@@ -118,7 +118,7 @@ describe('viewport + zoom bands', () => {
     expect(ensureVisible({ x: 100, y: 100, w: 100, h: 100 }, vp, canvas)).toBeNull();
     const pan = ensureVisible({ x: 2000, y: 100, w: 100, h: 100 }, vp, canvas)!;
     expect(pan.zoom).toBe(1);
-    expect(inView({ x: 2000, y: 100, w: 100, h: 100 }, pan, canvas)).toBe(true);
+    expect(inView({ x: 2000, y: 100, w: 100, h: 100 }, pan, canvas, 20)).toBe(true);
     const out = ensureVisible({ x: 0, y: 0, w: 3000, h: 100 }, vp, canvas)!;
     expect(out.zoom).toBeLessThan(1);
   });
@@ -127,5 +127,35 @@ describe('viewport + zoom bands', () => {
     expect(zoomBand(0.3)).toBe('far');
     expect(zoomBand(0.9)).toBe('mid');
     expect(zoomBand(1.5)).toBe('near');
+  });
+});
+
+describe('camera policy', () => {
+  const canvas = { width: 1200, height: 800 };
+  it('after an expand keeps the header in place when the new contents fit', () => {
+    const vp = { x: 100, y: 50, zoom: 1 };
+    const r = { x: 200, y: 200, w: 400, h: 300 };
+    expect(afterExpand(r, vp, canvas)).toEqual(vp);
+  });
+
+  it('after an expand zooms out only to the readable minimum and brings the header into view', () => {
+    const vp = { x: 0, y: 0, zoom: 1 };
+    const r = { x: 100, y: 100, w: 4000, h: 3000 };
+    const next = afterExpand(r, vp, canvas);
+    expect(next.zoom).toBe(READABLE_ZOOM);
+    expect(r.x * next.zoom + next.x).toBe(CHROME.left);
+    expect(r.y * next.zoom + next.y).toBe(CHROME.top);
+  });
+
+  it('frames an arriving selection at a readable zoom, centred on it when the frame is too big', () => {
+    const node = { x: 3000, y: 2000, w: 200, h: 90 };
+    const frame = { x: 0, y: 0, w: 6000, h: 4000 };
+    const vp = frameSelection(node, frame, canvas);
+    expect(vp.zoom).toBe(READABLE_ZOOM);
+    const cx = (node.x + node.w / 2) * vp.zoom + vp.x;
+    expect(Math.abs(cx - (CHROME.left + (canvas.width - CHROME.left - CHROME.right) / 2))).toBeLessThan(1);
+    const small = frameSelection(node, { x: 2900, y: 1900, w: 500, h: 300 }, canvas);
+    expect(small.zoom).toBeGreaterThan(1);
+    expect(placeRect({ x: 0, y: 0, w: 10, h: 10 }, 1, canvas).x).toBeCloseTo(CHROME.left + (canvas.width - CHROME.left - CHROME.right) / 2 - 5);
   });
 });

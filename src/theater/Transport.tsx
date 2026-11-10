@@ -30,6 +30,21 @@ export function Transport({ playing, onPlayPause, pauseAtDecisions, onPauseAtDec
   // Narrow: controls + counter + outcome on one row, the scrubber on its own full-width row.
   const twoRows = width > 0 && width < 960;
 
+  const speedControls = (
+      <div className="flex items-center gap-1.5">
+        <Segmented
+          size="sm"
+          label="Playback speed"
+          value={String(speed)}
+          onChange={(v) => setSpeed(Number(v))}
+          options={SPEEDS.map((s) => ({ value: String(s), label: `${s}×`, title: s === 1 ? 'Normal speed' : s < 1 ? 'Slower' : 'Faster', keys: ', .' }))}
+        />
+        <IconButton label={pauseAtDecisions ? 'Pausing at decisions — click to play through' : 'Playing through decisions — click to pause at them'} tipSide="top" size="sm" active={pauseAtDecisions} onClick={() => onPauseAtDecisions(!pauseAtDecisions)}>
+          <Diamond size={13} />
+        </IconButton>
+      </div>
+  );
+
   return (
     <div ref={bar} className={cn('flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line bg-surface px-3 py-2', twoRows && 'gap-x-2')} data-testid="transport">
       <div className="flex items-center gap-0.5">
@@ -47,18 +62,7 @@ export function Transport({ playing, onPlayPause, pauseAtDecisions, onPauseAtDec
         </IconButton>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <Segmented
-          size="sm"
-          label="Playback speed"
-          value={String(speed)}
-          onChange={(v) => setSpeed(Number(v))}
-          options={SPEEDS.map((s) => ({ value: String(s), label: `${s}×`, title: s === 1 ? 'Normal speed' : s < 1 ? 'Slower' : 'Faster', keys: ', .' }))}
-        />
-        <IconButton label={pauseAtDecisions ? 'Pausing at decisions — click to play through' : 'Playing through decisions — click to pause at them'} tipSide="top" size="sm" active={pauseAtDecisions} onClick={() => onPauseAtDecisions(!pauseAtDecisions)}>
-          <Diamond size={13} />
-        </IconButton>
-      </div>
+      {!twoRows && speedControls}
 
       {!twoRows && <Scrubber />}
 
@@ -94,7 +98,8 @@ export function Transport({ playing, onPlayPause, pauseAtDecisions, onPauseAtDec
         )}
       </div>
       {twoRows && (
-        <div className="flex basis-full">
+        <div className="flex basis-full items-center gap-2">
+          {speedControls}
           <Scrubber />
         </div>
       )}
