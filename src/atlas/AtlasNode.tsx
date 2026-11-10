@@ -53,6 +53,28 @@ function Handles() {
   );
 }
 
+/** Break points for long identifiers: spaces, slashes, dots and camelCase humps. */
+export function camelParts(name: string): string[] {
+  return name.split(/[\s/.]+|(?<=[a-z])(?=[A-Z])/).filter(Boolean);
+}
+
+/** The name with soft break opportunities at camelCase humps, slashes and dots. */
+function breakable(name: string) {
+  const parts = name.split(/(?<=[a-z])(?=[A-Z])|(?<=[/.])/);
+  return parts.map((p, i) => (
+    <span key={i}>
+      {i > 0 && <wbr />}
+      {p}
+    </span>
+  ));
+}
+
+/** Largest far-zoom font (flow px) at which the longest word of a name still fits a card's width. */
+export function farMaxFont(name: string, inner = 190): number {
+  const longest = Math.max(4, ...camelParts(name).map((w) => w.length));
+  return Math.max(12, Math.min(24, Math.floor(inner / (longest * 0.62))));
+}
+
 function AtlasNodeImpl({ data }: NodeProps<AtlasFlowNode>) {
   const model = useModel();
   const band = useStore((s) => zoomBand(s.transform[2]));
@@ -214,7 +236,9 @@ function AtlasNodeImpl({ data }: NodeProps<AtlasFlowNode>) {
     >
       <Handles />
       {band === 'far' ? (
-        <div className="atlas-far-name">{data.name}</div>
+        <div className="atlas-far-name" style={{ '--far-max': `${farMaxFont(data.name)}px` } as React.CSSProperties}>
+          {breakable(data.name)}
+        </div>
       ) : (
         <>
           <div className="flex min-w-0 items-start gap-1.5">

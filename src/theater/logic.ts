@@ -206,8 +206,8 @@ export const SPEEDS = [0.5, 1, 2, 4] as const;
 
 /** How long a step stays current while playing, in ms (scaled by speed). */
 export function stepDuration(step: ScenarioStep, speed: number, narrativeLength = step.narrative.length): number {
-  const base = step.kind === 'note' || step.kind === 'state' ? 2600 : 1900;
-  const reading = Math.min(2600, narrativeLength * 11);
+  const base = step.kind === 'note' || step.kind === 'state' ? 2000 : 1400;
+  const reading = Math.min(2200, narrativeLength * 8);
   const extra = step.kind === 'decision' ? 800 : step.effects?.length ? 600 : 0;
   return Math.round((base + reading + extra) / Math.max(0.25, speed));
 }

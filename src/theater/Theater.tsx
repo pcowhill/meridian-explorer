@@ -179,24 +179,24 @@ export default function Theater() {
     if (steps.length && index !== theater.stepIndex) theaterSetStep(index);
   }, [index, steps.length, theater.stepIndex, theaterSetStep]);
 
-  // When the visible list changes (detail level, edits), stay on the same step.
-  const last = useRef<{ sid: string; variant: string; stepId: string } | null>(null);
+  // When the visible list changes (detail level, edits) but nobody moved the
+  // presenter, stay on the same step instead of the same index.
+  const last = useRef<{ sid: string; variant: string; stepId: string; index: number } | null>(null);
   useEffect(() => {
     if (!scenario) return;
     const prev = last.current;
-    if (prev && prev.sid === scenario.id && prev.variant === variant && prev.stepId !== step?.id) {
+    if (prev && prev.sid === scenario.id && prev.variant === variant && prev.index === theater.stepIndex && prev.stepId !== step?.id) {
       const j = followStep(scenario, variant, steps, prev.stepId);
       if (j !== null && j !== index) {
         theaterSetStep(j);
         return;
       }
     }
-    last.current = step ? { sid: scenario.id, variant, stepId: step.id } : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [steps]);
   useEffect(() => {
-    if (scenario && step) last.current = { sid: scenario.id, variant, stepId: step.id };
-  }, [scenario, variant, step]);
+    if (scenario && step) last.current = { sid: scenario.id, variant, stepId: step.id, index: theater.stepIndex };
+  }, [scenario, variant, step, theater.stepIndex]);
 
   // Leaving a scenario stops playback and edit mode.
   useEffect(() => {
@@ -322,7 +322,7 @@ export default function Theater() {
         const vis = visibleSteps(sc, variant, d);
         const j = vis.findIndex((s) => s.id === stepId);
         if (j >= 0) {
-          last.current = { sid: sc.id, variant, stepId };
+          last.current = { sid: sc.id, variant, stepId, index: j };
           theaterSetStep(j);
         }
       },
@@ -542,6 +542,10 @@ function Header({
   const toast = useApp((s) => s.toast);
   const editable = source === 'custom' || source === 'draft';
   const hidden = allCount - steps.length;
+  const model = useModel();
+  const selection = useApp((s) => s.selection);
+  const selected = selection?.type === 'entity' ? model.entity(selection.id) : undefined;
+  const involving = useMemo(() => (selected ? model.scenariosFor(selected.id).length : 0), [selected, model]);
 
   const copyLink = async () => {
     try {
@@ -663,6 +667,11 @@ function Header({
         </span>
       )}
       {hidden === 0 && detail < 5 && allCount > 0 && <span className="presenter-hide shrink-0 whitespace-nowrap text-fg-subtle">· all {allCount} steps shown</span>}
+      {selected && !libOpen && !editing && (involving > 0 || model.contract(selected.id)) && (
+        <button type="button" onClick={onToggleLib} className="presenter-hide ml-auto shrink-0 truncate rounded-full border border-line px-2 py-px text-[11px] font-medium text-accent hover:bg-surface-2" data-testid="involving-chip">
+          {involving > 0 ? `${involving} workflow${involving === 1 ? '' : 's'} involve ${selected.name}` : `Trace ${selected.name}`} →
+        </button>
+      )}
     </div>
     </div>
   );
