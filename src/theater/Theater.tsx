@@ -203,10 +203,12 @@ export default function Theater() {
     if (scenario && step) last.current = { sid: scenario.id, variant, stepId: step.id, index: theater.stepIndex };
   }, [scenario, variant, step, theater.stepIndex]);
 
-  // Leaving a scenario stops playback and edit mode.
+  // Leaving a scenario stops playback and edit mode (unless it was opened to be edited).
+  const openInEdit = useRef(false);
   useEffect(() => {
     setPlaying(false);
-    setEditing(false);
+    setEditing(openInEdit.current);
+    openInEdit.current = false;
   }, [id]);
 
   const go = useCallback((i: number) => theaterSetStep(clampIndex(i, steps.length)), [theaterSetStep, steps.length]);
@@ -255,7 +257,7 @@ export default function Theater() {
       const existing = findCopy(src.id, [...Object.values(useDrafts.getState().drafts), ...custom]);
       if (existing) {
         theaterOpen(existing.id, theater.variant, index);
-        window.setTimeout(() => setEditing(true), 0);
+        openInEdit.current = true;
         toast(`Editing your copy “${existing.title}”`, 'ok');
         return;
       }
@@ -263,8 +265,7 @@ export default function Theater() {
       const copy = customizeCopy(src, source === 'custom' || source === 'draft');
       setDraft(copy);
       theaterOpen(copy.id, theater.variant, index);
-      // The id change resets edit mode; re-enable it on the next tick.
-      window.setTimeout(() => setEditing(true), 0);
+      openInEdit.current = true;
       toast(`Editing a copy — the original is unchanged. Save to keep it.`, 'ok');
     },
     [custom, setDraft, theaterOpen, theater.variant, index, toast, source],
@@ -287,7 +288,7 @@ export default function Theater() {
     const s = blankScenario(a, b);
     saveCustom(s);
     theaterOpen(s.id);
-    window.setTimeout(() => setEditing(true), 0);
+    openInEdit.current = true;
   }, [model, selection, saveCustom, theaterOpen]);
 
   const doImport = useCallback(async () => {

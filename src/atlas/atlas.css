@@ -498,17 +498,17 @@
   color: var(--fg);
 }
 .atlas-seltool {
-  position: absolute;
-  z-index: 20;
+  pointer-events: auto;
   display: flex;
+  max-width: 100%;
   align-items: center;
   gap: 1px;
   height: 36px;
-  padding: 0 3px 0 8px;
+  padding: 0 3px 0 10px;
   border-radius: 10px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-lg);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  box-shadow: var(--shadow);
   white-space: nowrap;
   animation: atlas-fade 0.15s ease-out both;
 }
@@ -522,7 +522,8 @@
 }
 .atlas-seltool-name {
   display: inline-flex;
-  max-width: 150px;
+  min-width: 0;
+  max-width: 220px;
   align-items: center;
   gap: 5px;
   font-size: 12px;

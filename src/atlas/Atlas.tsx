@@ -74,7 +74,7 @@ import { navigate, type Direction } from './nav';
 import { Sidebar } from './Sidebar';
 import { requestCamera, useAtlasLocal } from './store';
 import { prefersReducedMotion, useScene, useTweenedRects, type Scene } from './useScene';
-import { afterExpand, ensureVisible, fitRect, fitZoom, frameSelection, MAX_ZOOM, MIN_ZOOM, placeRect, READABLE_ZOOM, type Viewport } from './viewport';
+import { afterExpand, ensureVisible, fitZoom, frameSelection, MAX_ZOOM, MIN_ZOOM, placeRect, READABLE_ZOOM, type Viewport } from './viewport';
 import { isContainer } from './visibility';
 import './atlas.css';
 
@@ -271,7 +271,7 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
     if (!scene.lensIds) return;
     const hits = [...scene.lensIds].map((id) => scene.rects.get(id)).filter((r): r is Rect => !!r);
     const b = boundsOf(hits);
-    if (b) go(fitRect(b, canvas, { maxZoom: 1.1, padding: 0.12 }));
+    if (b) go(placeRect(b, Math.min(1.1, fitZoom(b, canvas) * 0.9), canvas));
   }, [lensKey, scene.lensIds, scene.rects, width, canvas, go]);
 
   // Semantic-zoom font scaling without React renders.
@@ -524,7 +524,32 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
         )}
       </ReactFlow>
 
-      <Breadcrumbs model={model} scene={scene} onUp={upOneLevel} />
+      <div className="pointer-events-none absolute left-3 right-[150px] top-3 z-10 flex flex-col items-start gap-2">
+        <Breadcrumbs model={model} scene={scene} />
+      {selOnMap && selNode && selEntity && !selNode.stub && (
+        <SelectionToolbar
+          name={selEntity.name}
+          kind={selEntity.kind}
+          color={entityColor(selEntity)}
+          container={selNode.isContainer}
+          expanded={selNode.expanded}
+          isFocusRoot={selOnMap === scene.focus}
+          canFocus={selOnMap !== model.root && (selNode.isContainer || (!!model.parentOf(selOnMap) && model.parentOf(selOnMap)!.id !== model.root))}
+          highlight={highlight}
+          spotlight={spotlight}
+          isolate={scene.isolating}
+          workflows={relatedWorkflows.map((s) => ({
+            id: s.id,
+            title: s.title,
+          }))}
+          onToggle={() => toggleExpand(model, selOnMap)}
+          onFocus={doFocus}
+          onUp={upOneLevel}
+          onStudio={addToStudio}
+        />
+      )}
+
+      </div>
 
       <div className="presenter-hide absolute right-3 top-3 z-10 flex items-center gap-1.5">
         <Tip label="Add a hypothetical component (dashed, purple) — it never changes Meridian" keys="Shift+H">
@@ -557,31 +582,6 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
 
       <Banners model={model} scene={scene} lensName={lensEntity?.name} lensOnMap={lensOnMap} shownEdges={shownEdges} />
 
-      {selOnMap && selNode && selEntity && (
-        <SelectionToolbar
-          rect={scene.rects.get(selOnMap)}
-          name={selEntity.name}
-          kind={selEntity.kind}
-          color={entityColor(selEntity)}
-          container={selNode.isContainer}
-          expanded={selNode.expanded}
-          isFocusRoot={selOnMap === scene.focus}
-          canFocus={selOnMap !== model.root && (selNode.isContainer || (!!model.parentOf(selOnMap) && model.parentOf(selOnMap)!.id !== model.root))}
-          stub={!!selNode.stub}
-          highlight={highlight}
-          spotlight={spotlight}
-          isolate={scene.isolating}
-          workflows={relatedWorkflows.map((s) => ({
-            id: s.id,
-            title: s.title,
-          }))}
-          onToggle={() => toggleExpand(model, selOnMap)}
-          onFocus={doFocus}
-          onUp={upOneLevel}
-          onStudio={addToStudio}
-        />
-      )}
-
       {hypoOpen && (
         <HypotheticalComponentDialog
           open
@@ -605,7 +605,7 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
 // Breadcrumbs (focus path) + sidebar toggle
 // ---------------------------------------------------------------------------
 
-function Breadcrumbs({ model, scene, onUp }: { model: Model; scene: Scene; onUp: () => void }) {
+function Breadcrumbs({ model, scene }: { model: Model; scene: Scene }) {
   const sidebarOpen = useAtlasLocal((s) => s.sidebarOpen);
   const setLocal = useAtlasLocal((s) => s.set);
   const selection = useApp((s) => s.selection);
@@ -614,7 +614,7 @@ function Breadcrumbs({ model, scene, onUp }: { model: Model; scene: Scene; onUp:
   // Within focus: crumbs below the focus follow the selection.
   const inner = scene.focus ? (selPath.some((e) => e.id === scene.focus) ? selPath.slice(selPath.findIndex((e) => e.id === scene.focus) + 1) : []) : selPath.slice(1);
   return (
-    <div className="absolute left-3 top-3 z-10 flex max-w-[calc(100%-200px)] items-center gap-1.5">
+    <div className="pointer-events-auto flex max-w-full items-center gap-1.5">
       {!sidebarOpen && (
         <Tip label="Show the sidebar (tree, filters, lens, legend)" keys="T">
           <button type="button" aria-label="Show the sidebar" className="atlas-chrome-btn presenter-hide" onClick={() => setLocal({ sidebarOpen: true })}>
@@ -661,11 +661,6 @@ function Breadcrumbs({ model, scene, onUp }: { model: Model; scene: Scene; onUp:
       </nav>
       {scene.focus && (
         <>
-          <Tip label="Up one level" keys="U">
-            <button type="button" aria-label="Up one level" className="atlas-chrome-btn" onClick={onUp}>
-              <ArrowUp size={14} />
-            </button>
-          </Tip>
           <Tip label="Leave focus — back to the whole system">
             <button type="button" aria-label="Leave focus" className="atlas-chrome-btn" onClick={() => useApp.getState().atlasFocus(null)}>
               <Minimize2 size={14} />
@@ -765,7 +760,7 @@ function Banners({ model, scene, lensName, lensOnMap, shownEdges }: { model: Mod
     );
   }
   if (!items.length) return null;
-  return <div className="pointer-events-none absolute left-1/2 top-14 z-10 flex -translate-x-1/2 flex-col items-center gap-1.5">{items}</div>;
+  return <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-1.5">{items}</div>;
 }
 
 function Banner({ children, action, icon, tone }: { children: ReactNode; action?: ReactNode; icon?: ReactNode; tone?: 'feature' }) {
@@ -783,7 +778,6 @@ function Banner({ children, action, icon, tone }: { children: ReactNode; action?
 // ---------------------------------------------------------------------------
 
 interface ToolbarProps {
-  rect: Rect | undefined;
   name: string;
   kind: Parameters<typeof KindIcon>[0]['kind'];
   color: string;
@@ -791,7 +785,6 @@ interface ToolbarProps {
   expanded: boolean;
   isFocusRoot: boolean;
   canFocus: boolean;
-  stub: boolean;
   highlight: boolean;
   spotlight: boolean;
   isolate: boolean;
@@ -803,35 +796,9 @@ interface ToolbarProps {
 }
 
 function SelectionToolbar(p: ToolbarProps) {
-  const transform = useStore((s) => s.transform);
-  const width = useStore((s) => s.width);
-  const height = useStore((s) => s.height);
   const set = useAtlasLocal((s) => s.set);
-  if (!p.rect || p.stub || !width) return null;
-  const [tx, ty, zoom] = transform;
-  const half = 190;
-  const x = Math.max(half + 8, Math.min(width - half - 8, tx + (p.rect.x + p.rect.w / 2) * zoom));
-  const yTop = ty + p.rect.y * zoom - 10;
-  // No room above the node (it starts above the top chrome): tuck the toolbar inside its top edge
-  // instead, so it covers the node itself rather than a neighbour.
-  const below = yTop < 96;
-  const bottom = ty + (p.rect.y + p.rect.h) * zoom;
-  if (below && bottom < 120) return null;
-  const y = below ? Math.min(height - 60, 96) : yTop;
-  if (y > height + 40) return null;
   return (
-    <div
-      role="toolbar"
-      aria-label={`Actions for ${p.name}`}
-      data-testid="atlas-selection-toolbar"
-      className="atlas-seltool presenter-keep"
-      style={{
-        left: x,
-        top: y,
-        transform: below ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
-      }}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
+    <div role="toolbar" aria-label={`Actions for ${p.name}`} data-testid="atlas-selection-toolbar" className="atlas-seltool">
       <span className="atlas-seltool-name" title={`${p.name} · ${KIND_LABEL[p.kind]}`}>
         <span style={{ color: p.color }}>
           <KindIcon kind={p.kind} size={12} />
@@ -840,34 +807,34 @@ function SelectionToolbar(p: ToolbarProps) {
       </span>
       <span className="atlas-seltool-sep" />
       {p.container && !p.isFocusRoot && (
-        <IconButton label={p.expanded ? 'Collapse' : 'Expand'} keys="E" size="sm" tipSide="top" onClick={p.onToggle}>
+        <IconButton label={p.expanded ? 'Collapse' : 'Expand'} keys="E" size="sm" tipSide="bottom" onClick={p.onToggle}>
           {p.expanded ? <Minimize2 size={14} /> : <Layers size={14} />}
         </IconButton>
       )}
       {p.canFocus && !p.isFocusRoot && (
-        <IconButton label="Focus" keys="F" size="sm" tipSide="top" onClick={p.onFocus}>
+        <IconButton label="Focus" keys="F" size="sm" tipSide="bottom" onClick={p.onFocus}>
           <Focus size={14} />
         </IconButton>
       )}
-      <IconButton label="Up one level" keys="U" size="sm" tipSide="top" onClick={p.onUp}>
+      <IconButton label="Up one level" keys="U" size="sm" tipSide="bottom" onClick={p.onUp}>
         <ArrowUp size={14} />
       </IconButton>
-      <IconButton label="Highlight dependencies" keys="D" size="sm" tipSide="top" active={p.highlight} onClick={() => set({ highlight: !p.highlight, spotlight: false })}>
+      <IconButton label="Highlight dependencies" keys="D" size="sm" tipSide="bottom" active={p.highlight} onClick={() => set({ highlight: !p.highlight, spotlight: false })}>
         <Share2 size={14} />
       </IconButton>
-      <IconButton label="Isolate neighbourhood" keys="N" size="sm" tipSide="top" active={p.isolate} onClick={() => useApp.getState().atlasIsolate(!p.isolate)}>
+      <IconButton label="Isolate neighbourhood" keys="N" size="sm" tipSide="bottom" active={p.isolate} onClick={() => useApp.getState().atlasIsolate(!p.isolate)}>
         <Crosshair size={14} />
       </IconButton>
-      <IconButton label="Spotlight" keys="S" size="sm" tipSide="top" active={p.spotlight} onClick={() => set({ spotlight: !p.spotlight, highlight: false })}>
+      <IconButton label="Spotlight" keys="S" size="sm" tipSide="bottom" active={p.spotlight} onClick={() => set({ spotlight: !p.spotlight, highlight: false })}>
         <Presentation size={14} />
       </IconButton>
       {p.workflows.length > 0 && (
         <Popover
-          side="top"
+          side="bottom"
           align="end"
           className="w-72"
           trigger={(t) => (
-            <Tip label={`Related workflows (${p.workflows.length}) — W opens the best match`} keys="W" side="top">
+            <Tip label={`Related workflows (${p.workflows.length}) — W opens the best match`} keys="W" side="bottom">
               <button
                 type="button"
                 aria-label="Related workflows"
@@ -899,7 +866,7 @@ function SelectionToolbar(p: ToolbarProps) {
           )}
         </Popover>
       )}
-      <IconButton label="Add to Studio" size="sm" tipSide="top" onClick={p.onStudio}>
+      <IconButton label="Add to Studio" size="sm" tipSide="bottom" onClick={p.onStudio}>
         <PenTool size={14} />
       </IconButton>
     </div>

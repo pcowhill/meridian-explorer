@@ -37,22 +37,6 @@ export function inView(r: Rect, vp: Viewport, canvas: Size2, margin = 24): boole
   return x0 >= margin && y0 >= margin && x1 <= canvas.width - margin && y1 <= canvas.height - margin;
 }
 
-/**
- * The smallest viewport change that brings `r` fully into view: nothing if it
- * already is, a pan if it fits at the current zoom, otherwise zoom out to fit.
- */
-export function ensureVisible(r: Rect, vp: Viewport, canvas: Size2, margin = 48): Viewport | null {
-  if (inView(r, vp, canvas, margin / 2)) return null;
-  const fits = r.w * vp.zoom <= canvas.width - 2 * margin && r.h * vp.zoom <= canvas.height - 2 * margin;
-  if (fits)
-    return {
-      x: canvas.width / 2 - (r.x + r.w / 2) * vp.zoom,
-      y: canvas.height / 2 - (r.y + r.h / 2) * vp.zoom,
-      zoom: vp.zoom,
-    };
-  return fitRect(r, canvas, { maxZoom: vp.zoom, padding: 0.06 });
-}
-
 /** Screen-space margins kept free of map content (the canvas chrome sits there). */
 export interface Insets {
   top: number;
@@ -129,4 +113,30 @@ export function frameSelection(node: Rect, frame: Rect, canvas: Size2, opts: { m
   const zoom = Math.max(opts.minZoom ?? READABLE_ZOOM, Math.min(opts.maxZoom ?? 1.15, want));
   const centre = { x: node.x + node.w / 2, y: node.y + Math.min(node.h, 200) / 2 };
   return placeRect(frame, zoom, canvas, insets, centre);
+}
+
+/**
+ * The smallest viewport change that brings `r` fully into the free area:
+ * nothing if it already is, otherwise a pan (zooming out only when it cannot
+ * fit at the current zoom).
+ */
+export function ensureVisible(r: Rect, vp: Viewport, canvas: Size2, insets: Insets = CHROME): Viewport | null {
+  const x0 = r.x * vp.zoom + vp.x;
+  const y0 = r.y * vp.zoom + vp.y;
+  const x1 = x0 + r.w * vp.zoom;
+  const y1 = y0 + r.h * vp.zoom;
+  if (x0 >= insets.left && y0 >= insets.top && x1 <= canvas.width - insets.right && y1 <= canvas.height - insets.bottom) return null;
+  if (fitZoom(r, canvas, insets) >= vp.zoom) return { ...nudgeInto(r, vp, canvas, insets), zoom: vp.zoom };
+  return afterExpand(r, vp, canvas, insets);
+}
+
+function nudgeInto(r: Rect, vp: Viewport, canvas: Size2, insets: Insets): { x: number; y: number } {
+  const n = (pos: number, start: number, size: number, lo: number, hi: number) => {
+    const a = start * vp.zoom + pos;
+    const b = a + size * vp.zoom;
+    if (b - a > hi - lo || a < lo) return pos + (lo - a);
+    if (b > hi) return pos - (b - hi);
+    return pos;
+  };
+  return { x: n(vp.x, r.x, r.w, insets.left, canvas.width - insets.right), y: n(vp.y, r.y, r.h, insets.top, canvas.height - insets.bottom) };
 }
