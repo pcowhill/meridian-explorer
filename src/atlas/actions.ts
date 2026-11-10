@@ -5,7 +5,7 @@
  */
 import type { Model } from '@/model';
 import { useApp } from '@/state/app';
-import { useAtlasLocal } from './store';
+import { requestCamera, useAtlasLocal } from './store';
 import { isContainer } from './visibility';
 
 interface NodeRef {
@@ -23,18 +23,24 @@ export function activateNode(_model: Model, d: NodeRef): void {
     app.atlasReveal(d.id);
     return;
   }
+  const expand = d.isContainer && !d.expanded;
+  requestCamera(expand ? 'expand' : 'select', d.id);
   app.selectEntity(d.id);
-  if (d.isContainer && !d.expanded) app.atlasExpand([d.id]);
+  if (expand) app.atlasExpand([d.id]);
 }
 
 /** The header chevron: expand, or collapse (moving the selection out of the collapsed contents). */
 export function toggleNode(model: Model, d: NodeRef): void {
   if (d.expanded) collapse(model, d.id);
-  else useApp.getState().atlasExpand([d.id]);
+  else {
+    requestCamera('expand', d.id);
+    useApp.getState().atlasExpand([d.id]);
+  }
 }
 
 export function collapse(model: Model, id: string): void {
   const app = useApp.getState();
+  requestCamera('select', id);
   app.atlasCollapse(id);
   const sel = app.selection;
   if (sel?.type === 'entity' && sel.id !== id && model.isWithin(sel.id, id)) app.selectEntity(id);
@@ -50,7 +56,10 @@ export function toggleExpand(model: Model, id: string): void {
   if (app.atlas.expanded.includes(id) || app.atlas.focus === id) {
     if (app.atlas.focus === id) return;
     collapse(model, id);
-  } else app.atlasExpand([id]);
+  } else {
+    requestCamera('expand', id);
+    app.atlasExpand([id]);
+  }
 }
 
 /** "+N more": show this container's detail-hidden children (local to the Atlas). */
@@ -61,6 +70,7 @@ export function revealHidden(id: string): void {
 
 /** Home: back to the single Meridian node. */
 export function resetMap(): void {
+  requestCamera('fit');
   useApp.getState().atlasCollapseAll();
   useApp.getState().atlasLens(null);
   useAtlasLocal.getState().set({ revealAll: [], pinned: [], highlight: false, spotlight: false });

@@ -21,6 +21,7 @@ import {
   nextSpeed,
   parsePayload,
   pathsOverview,
+  placeLabel,
   removeParticipant,
   resolveScenario,
   sanitiseImported,
@@ -184,17 +185,33 @@ describe('stage layout', () => {
     return { id: app?.id ?? '?', label: app?.name ?? '?' };
   };
   it('is deterministic and places every participant once without overlap', () => {
-    const a = stageLayout(steps, parts, groupOf, 1.5);
-    const b = stageLayout(steps, parts, groupOf, 1.5);
+    const a = stageLayout(steps, parts, groupOf);
+    const b = stageLayout(steps, parts, groupOf);
     expect([...a.nodes.entries()]).toEqual([...b.nodes.entries()]);
     expect(a.nodes.size).toBe(parts.length);
     const boxes = [...a.nodes.values()];
     for (const n of boxes) for (const m of boxes) if (n !== m) expect(n.x + n.w <= m.x || m.x + m.w <= n.x || n.y + n.h <= m.y || m.y + m.h <= n.y).toBe(true);
   });
   it('wraps groups into rows for tall viewports', () => {
-    const wide = stageLayout(steps, parts, groupOf, 4);
-    const tall = stageLayout(steps, parts, groupOf, 0.6);
+    const wide = stageLayout(steps, parts, groupOf, { width: 4000, height: 700 });
+    const tall = stageLayout(steps, parts, groupOf, { width: 500, height: 2400 });
     expect(tall.height).toBeGreaterThan(wide.height);
+    expect(new Set(wide.groups.map((g) => g.y + g.h / 2)).size).toBeLessThanOrEqual(wide.groups.length);
+    expect(wide.groups.every((g, i) => i === 0 || g.x > wide.groups[i - 1].x)).toBe(true);
+  });
+  it('orders groups by the first participant of each, in lane order', () => {
+    const transfer = baseModel.scenario('transfer')!;
+    const st = visibleSteps(transfer, transfer.defaultVariant, 5);
+    const lanes = transfer.participants.filter((p) => st.some((s) => s.from === p || s.to === p));
+    const l = stageLayout(st, lanes, groupOf, { width: 4000, height: 900 });
+    const firstGroupOrder = [...new Set(lanes.map((p) => groupOf(p).id))];
+    expect(l.groups.map((g) => g.id)).toEqual(firstGroupOrder);
+  });
+  it('places edge labels clear of nodes', () => {
+    const nodes = [{ id: 'n', x: 0, y: 0, w: 100, h: 40, group: 'g' }];
+    const p = placeLabel(50, 20, 80, 20, nodes);
+    expect(p.y + 10 < -4 || p.y - 10 > 44).toBe(true);
+    expect(placeLabel(300, 300, 80, 20, nodes)).toEqual({ x: 300, y: 300 });
   });
   it('draws curves (and loops) between nodes', () => {
     const n = { id: 'a', x: 0, y: 0, w: 100, h: 40, group: 'g' };

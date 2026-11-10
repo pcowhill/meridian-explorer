@@ -3,7 +3,7 @@
  * excerpts, examples, contracts, scenarios, state machines, tables, types) and
  * reuses the shared viewers; free-form variants are edited in place.
  */
-import { memo, useMemo, useState, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import {
   ArrowDown,
@@ -401,8 +401,8 @@ export const ClassNode = memo(function ClassNode({ id, data, selected }: P<Class
         <div className="shrink-0 border-b border-line bg-surface-2 px-2 py-1.5 text-center">
           <div className="text-[10px] text-fg-subtle">«{stereotype}»</div>
           {e ? (
-            <button type="button" className="nodrag max-w-full truncate font-mono text-[13px] font-semibold hover:underline" onClick={() => useApp.getState().selectEntity(e.id)} title="Inspect">
-              {name}
+            <button type="button" className="nodrag max-w-full truncate text-[13px] font-semibold hover:underline" onClick={() => useApp.getState().selectEntity(e.id)} title="Inspect">
+              <span className="font-mono">{name}</span>
             </button>
           ) : (
             <EditableText id={id} value={data.label} placeholder="TypeName" multiline={false} className="font-mono text-[13px] font-semibold" />
@@ -536,6 +536,17 @@ export const SequenceNode = memo(function SequenceNode({ id, data, selected }: P
     if (scenario && steps[i]) useApp.getState().select({ type: 'step', scenarioId: scenario.id, stepId: steps[i].id });
   };
   const title = data.label || source?.title || 'Sequence';
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Keep the active step in view (manual scroll: scrollIntoView could move the canvas).
+    const body = bodyRef.current?.parentElement;
+    const row = bodyRef.current?.querySelector<SVGGElement>('[aria-current=step]');
+    if (!body || !row) return;
+    const b = body.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    const scale = b.height / body.clientHeight || 1;
+    if (r.top < b.top || r.bottom > b.bottom) body.scrollTop += (r.top - b.top) / scale - body.clientHeight / 3;
+  }, [index]);
   return (
     <NodeShell id={id} type="sequence" data={data} selected={selected} minWidth={320} minHeight={200}>
       <WidgetBox
@@ -595,6 +606,7 @@ export const SequenceNode = memo(function SequenceNode({ id, data, selected }: P
         }
         bodyClassName="p-1"
       >
+        <div ref={bodyRef}>
         {steps.length ? (
           <SequenceDiagram
             participants={participants}
@@ -609,6 +621,7 @@ export const SequenceNode = memo(function SequenceNode({ id, data, selected }: P
         ) : (
           <div className="p-3 text-[12px] text-fg-subtle">No steps.</div>
         )}
+        </div>
       </WidgetBox>
     </NodeShell>
   );

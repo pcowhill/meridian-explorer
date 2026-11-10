@@ -23,6 +23,12 @@ export function zoomBand(zoom: number): ZoomBand {
 export type NodeFx = 'dim' | 'focus' | 'lens' | 'lens-in' | undefined;
 export type EdgeFx = 'dim' | 'focus' | undefined;
 
+export interface CameraIntent {
+  kind: 'expand' | 'select' | 'fit';
+  id?: string;
+  seq: number;
+}
+
 export interface AtlasLocal {
   sidebarOpen: boolean;
   /** Highlight dependencies of the selection. */
@@ -40,6 +46,13 @@ export interface AtlasLocal {
   /** Edge ids whose labels fit without collisions at close zoom. */
   labelOk: Set<string>;
   treeFilter: string;
+  /**
+   * What the last on-map interaction wants from the camera: `expand` keeps the
+   * clicked header in place, `select` only keeps the node in view, `fit` shows
+   * everything. Selections without an intent (deep link, search, tree…) are
+   * framed at a readable zoom.
+   */
+  camera: CameraIntent | null;
   set: (patch: Partial<Omit<AtlasLocal, 'set'>>) => void;
 }
 
@@ -55,5 +68,11 @@ export const useAtlasLocal = create<AtlasLocal>((set) => ({
   edgeFx: new Map(),
   labelOk: new Set(),
   treeFilter: '',
+  camera: null,
   set: (patch) => set(patch),
 }));
+
+let cameraSeq = 0;
+export function requestCamera(kind: CameraIntent['kind'], id?: string): void {
+  useAtlasLocal.getState().set({ camera: { kind, id, seq: ++cameraSeq } });
+}

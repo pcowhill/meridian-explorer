@@ -209,13 +209,13 @@ export const DEFAULT_SIZE: Record<StudioNodeType, { w: number; h: number }> = {
   json: { w: 340, h: 300 },
   table: { w: 460, h: 280 },
   class: { w: 260, h: 230 },
-  contract: { w: 380, h: 300 },
+  contract: { w: 380, h: 340 },
   sequence: { w: 680, h: 440 },
-  state: { w: 560, h: 380 },
+  state: { w: 640, h: 400 },
   timeline: { w: 300, h: 280 },
   compare: { w: 620, h: 320 },
   transform: { w: 760, h: 280 },
-  balance: { w: 560, h: 460 },
+  balance: { w: 560, h: 420 },
 };
 
 export const NODE_TYPE_LABEL: Record<StudioNodeType, string> = {

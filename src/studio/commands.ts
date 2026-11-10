@@ -66,10 +66,11 @@ function visibleRects() {
 }
 
 /** Fit padding that keeps content clear of the floating panels and bars. */
-export function fitPadding(): { top: string; right: string; bottom: string; left: string } {
+export function fitPadding(): { top: `${number}px`; right: `${number}px`; bottom: `${number}px`; left: `${number}px` } {
   const panel = canvasEl?.parentElement?.querySelector('[data-testid=selection-panel]');
   const legend = canvasEl?.parentElement?.querySelector('[data-testid=hypo-legend]');
-  return { top: legend ? '64px' : '40px', right: panel ? `${panel.getBoundingClientRect().width + 36}px` : '40px', bottom: '76px', left: '40px' };
+  const right = panel ? Math.round(panel.getBoundingClientRect().width + 36) : 40;
+  return { top: `${legend ? 64 : 40}px`, right: `${right}px`, bottom: '76px', left: '40px' };
 }
 
 export function fitTo(ids: string[], duration = 280): void {
