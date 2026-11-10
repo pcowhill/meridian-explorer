@@ -68,6 +68,7 @@ export const STATUS_TEXT: Record<EdgeStatus, string> = {
   known: 'Known relationship',
   hypothetical: 'Hypothetical',
   unverified: 'Not in Meridian',
+  indirect: 'Indirect connection',
   free: 'Annotation',
 };
 
@@ -131,10 +132,13 @@ export const StudioEdge = memo(function StudioEdge({ id, source, target, data, s
     ly = (sp.y + tp.y) / 2;
   }
 
-  const hypo = status === 'hypothetical' || status === 'unverified' || !!d.proposed;
-  const color = hypo ? 'var(--k-hypo)' : edgeColor(d.color, status === 'known' ? d.channel : undefined);
-  const width = emphasised ? 3.2 : selected ? 2.4 : 1.6;
-  const style = hypo && (!d.strokeStyle || d.strokeStyle === 'solid') ? 'dashed' : d.strokeStyle;
+  const indirect = status === 'indirect';
+  const indirectHypo = indirect && (d.indirect?.relationIds ?? []).some((rid) => model.relation(rid)?.confidence === 'hypothetical');
+  const hypo = status === 'hypothetical' || status === 'unverified' || !!d.proposed || indirectHypo;
+  // Indirect links are never styled like a verified direct relationship: thin, dotted, neutral.
+  const color = hypo ? 'var(--k-hypo)' : indirect ? 'var(--fg-subtle)' : edgeColor(d.color, status === 'known' ? d.channel : undefined);
+  const width = emphasised ? 3.2 : selected ? 2.4 : indirect ? 1.2 : 1.6;
+  const style = indirect ? 'dotted' : hypo && (!d.strokeStyle || d.strokeStyle === 'solid') ? 'dashed' : d.strokeStyle;
   const dash = d.animated && (!style || style === 'solid') ? `${width * 4} ${width * 3}` : dashArray(style, width);
   const arrow = d.arrow ?? 'end';
   const markerId = `sm-${id}`;

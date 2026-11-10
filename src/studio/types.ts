@@ -192,6 +192,8 @@ export interface EdgeData {
   channel?: RelationChannel;
   /** Marked proposed / hypothetical by the user or the request that created it. */
   proposed?: boolean;
+  /** An indirect link: the two model relations through an entity that is not on the board. */
+  indirect?: { via: string; relationIds: string[] };
 }
 
 export type SNode = Node<AnyNodeData, StudioNodeType>;

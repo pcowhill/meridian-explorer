@@ -34,6 +34,8 @@ import { STATUS_TEXT } from './edges/StudioEdge';
 import { edgeStatus, entityOf } from './logic/modelEdges';
 import { indexNodes } from './logic/geometry';
 import { quickWidgets } from './logic/widgets';
+import { expandIndirect } from './logic/build';
+import { currentModel } from './model';
 import { openWidget } from './Palette';
 import { usePrefs } from './prefs';
 import { useStudio } from './store';
@@ -409,8 +411,8 @@ function EdgeSection({ edge, expanded }: { edge: SEdge; expanded: boolean }) {
           style={
             status === 'known'
               ? { borderColor: 'color-mix(in srgb, var(--ok) 40%, var(--line))', background: 'color-mix(in srgb, var(--ok) 8%, var(--surface))' }
-              : status === 'free'
-                ? { borderColor: 'var(--line)' }
+              : status === 'free' || status === 'indirect'
+                ? { borderColor: 'var(--line)', borderStyle: status === 'indirect' ? 'dotted' : 'solid' }
                 : { borderColor: 'var(--k-hypo)', borderStyle: 'dashed', background: 'color-mix(in srgb, var(--k-hypo) 8%, var(--surface))' }
           }
           data-testid="edge-status"
@@ -420,7 +422,29 @@ function EdgeSection({ edge, expanded }: { edge: SEdge; expanded: boolean }) {
           {status === 'hypothetical' && 'Recorded in a hypothetical layer — not part of Meridian today.'}
           {status === 'unverified' && 'Meridian has no relationship between these two. This line is your sketch, not a fact.'}
           {status === 'free' && 'A drawn line between board elements.'}
+          {status === 'indirect' && `Not a direct relationship: connected through ${model.entity(edge.data?.indirect?.via)?.name ?? 'an entity'}, which is not on the board.`}
         </div>
+        {status === 'indirect' && edge.data?.indirect && model.has(edge.data.indirect.via) && (
+          <Button
+            size="sm"
+            variant="primary"
+            icon={<Plus size={12} />}
+            data-testid="expand-indirect"
+            className="max-w-full"
+            onClick={() => {
+              let added: string | null = null;
+              useStudio.getState().commit((s) => {
+                const r = expandIndirect(currentModel(), s.nodes, s.edges, edge.id);
+                if (!r) return {};
+                added = r.added.id;
+                return { nodes: r.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), edges: r.edges };
+              });
+              if (added) useStudio.getState().setSelection([added]);
+            }}
+          >
+            <span className="truncate">Add {model.entity(edge.data.indirect.via)?.name} to the board</span>
+          </Button>
+        )}
         {status === 'unverified' && a && b && (
           <div className="flex flex-col gap-1.5 rounded-md bg-surface-2 p-2">
             <div className="text-[11px] font-semibold text-fg-muted">Record as hypothetical relationship</div>

@@ -1090,7 +1090,8 @@ export function Inspector() {
   const open = useApp((s) => s.inspectorOpen);
   const setOpen = useApp((s) => s.setInspectorOpen);
   const select = useApp((s) => s.select);
-  const [width, setWidth] = useState(400);
+  // Narrower by default on small windows so the canvas keeps most of the width.
+  const [width, setWidth] = useState(() => Math.round(Math.max(300, Math.min(400, (typeof window === 'undefined' ? 1440 : window.innerWidth) * 0.3))));
 
   // With nothing selected the panel gets out of the way, leaving the canvas the full width.
   if (!open || !selection) return null;

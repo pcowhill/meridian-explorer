@@ -13,7 +13,7 @@ import type { StudioEdge, StudioNode } from '@/state/workspace';
 import { DEFAULT_SIZE, type EdgeData, type EntityData, type SEdge, type SNode, type SequenceData, type StudioNodeType } from '../types';
 import { absPos, absRect, boundsOf, clearOrigin, contains, findFreeSpot, indexNodes, nodeSize, snap, sortParentsFirst, type Point, type Rect } from './geometry';
 import { layered, grid, row, type LayoutEdge } from './layout';
-import { autoConnect, describeRelations, edgeDataFromLifted, edgesPerChannel, entityOf, liftedForBoard, newEdgeId, relationsForPair } from './modelEdges';
+import { autoConnect, describeRelations, edgeDataFromLifted, edgesPerChannel, entityOf, indirectLink, knownEdgeData, liftedForBoard, newEdgeId, relationsForPair } from './modelEdges';
 
 export interface Patch {
   nodes: SNode[];
@@ -145,7 +145,7 @@ export function placeEntities(model: Model, nodes: readonly SNode[], edges: read
   let layoutEdges: LayoutEdge[] = [];
   if (opts.edges?.length) layoutEdges = opts.edges.map((e) => ({ source: e.from, target: e.to }));
   else if (layoutMode === 'auto') layoutEdges = liftedForBoard(model, new Set(fresh)).map((l) => edgeDataFromLifted(l)).map((x) => ({ source: x.source, target: x.target }));
-  const rel = layoutMode === 'sequence' ? row(items, 170) : layoutMode === 'grid' ? grid(items) : layered(items, layoutEdges, { gapX: 170, gapY: 40 });
+  const rel = layoutMode === 'sequence' ? row(items, 170) : layoutMode === 'grid' ? grid(items) : layered(items, layoutEdges, { gapX: 140, gapY: 32 });
 
   const origin = opts.origin ?? clearOrigin(allRects(nodes));
   const titleH = opts.title ? 76 : 0;
@@ -224,9 +224,15 @@ export function planImport(model: Model, nodes: readonly SNode[], edges: readonl
     note: req.note,
     layout: req.layout ?? 'auto',
     edges: req.edges,
-    origin: single ? nextToContent(nodes, DEFAULT_SIZE.entity) : undefined,
+    origin: single ? singleSpot(model, nodes, ids[0]) : undefined,
   });
   return patch;
+}
+
+/** A single imported entity goes beside what it relates to, else next to the content. */
+function singleSpot(model: Model, nodes: readonly SNode[], id: string): Point {
+  const fallback = nextToContent(nodes, DEFAULT_SIZE.entity);
+  return spotFor(model, nodes, id, { x: fallback.x + DEFAULT_SIZE.entity.w / 2, y: fallback.y + DEFAULT_SIZE.entity.h / 2 }, false) ?? fallback;
 }
 
 /** Next free spot near the existing content's right edge (for single additions). */
@@ -277,8 +283,8 @@ export function dependencyDiagram(model: Model, nodes: readonly SNode[], entityI
   }
 
   const size = DEFAULT_SIZE.entity;
-  const gapX = 230;
-  const gapY = 30;
+  const gapX = 150;
+  const gapY = 24;
   const colH = (n: number) => n * size.h + Math.max(0, n - 1) * gapY;
   const tallest = Math.max(size.h, ...levels.left.map((c) => colH(c.length)), ...levels.right.map((c) => colH(c.length)));
   const origin = clearOrigin(allRects(nodes));
@@ -738,24 +744,71 @@ export function instantiate(tpl: { nodes: StudioNode[]; edges: StudioEdge[] }, o
 
 /**
  * Where a single new entity should go: beside the on-board entity it relates to
- * (right of what calls it, left of what it calls), else near `fallback`.
+ * (right of what calls it, left of what it calls; an indirect partner if there
+ * is no direct one), else near `fallback`. With `orFallback` false, returns
+ * null when nothing on the board relates to it.
  */
-export function spotFor(model: Model, nodes: readonly SNode[], entityId: string, fallback: Point): Point {
+export function spotFor(model: Model, nodes: readonly SNode[], entityId: string, fallback: Point): Point;
+export function spotFor(model: Model, nodes: readonly SNode[], entityId: string, fallback: Point, orFallback: false): Point | null;
+export function spotFor(model: Model, nodes: readonly SNode[], entityId: string, fallback: Point, orFallback = true): Point | null {
   const size = DEFAULT_SIZE.entity;
   const rects = allRects(nodes);
   const byId = indexNodes(nodes);
-  let best: { node: SNode; right: boolean; d: number } | null = null;
-  for (const n of nodes) {
-    const other = entityOf(n);
-    if (!other || n.hidden || other === entityId) continue;
-    const rels = relationsForPair(model, entityId, other).filter((r) => !STRUCTURAL.includes(r.kind));
-    if (!rels.length) continue;
-    const r = absRect(n, byId);
-    const d = Math.hypot(r.x + r.w / 2 - fallback.x, r.y + r.h / 2 - fallback.y);
-    if (!best || d < best.d) best = { node: n, right: rels.some((x) => model.isWithin(x.from, other)), d };
+  const ents = nodes.filter((n) => entityOf(n) && !n.hidden && entityOf(n) !== entityId);
+  const pick = (cands: { node: SNode; right: boolean }[]) => {
+    let best: { node: SNode; right: boolean; d: number } | null = null;
+    for (const c of cands) {
+      const r = absRect(c.node, byId);
+      const d = Math.hypot(r.x + r.w / 2 - fallback.x, r.y + r.h / 2 - fallback.y);
+      if (!best || d < best.d) best = { ...c, d };
+    }
+    return best;
+  };
+  let best = pick(
+    ents.flatMap((n) => {
+      const rels = relationsForPair(model, entityId, entityOf(n)!).filter((r) => !STRUCTURAL.includes(r.kind));
+      return rels.length ? [{ node: n, right: rels.some((x) => model.isWithin(x.from, entityOf(n)!)) }] : [];
+    }),
+  );
+  if (!best && ents.length <= 80) {
+    const onBoard = new Set(ents.map((n) => entityOf(n)!));
+    best = pick(
+      ents.flatMap((n) => {
+        const link = indirectLink(model, entityId, entityOf(n)!, onBoard);
+        return link ? [{ node: n, right: !link.forward }] : [];
+      }),
+    );
   }
-  if (!best) return findFreeSpot(rects, size.w, size.h, fallback, 40);
+  if (!best) return orFallback ? findFreeSpot(rects, size.w, size.h, fallback, 40) : null;
   const r = absRect(best.node, byId);
-  const want = { x: best.right ? r.x + r.w + 150 + size.w / 2 : r.x - 150 - size.w / 2, y: r.y + r.h / 2 };
+  const want = { x: best.right ? r.x + r.w + 140 + size.w / 2 : r.x - 140 - size.w / 2, y: r.y + r.h / 2 };
   return findFreeSpot(rects, size.w, size.h, want, 40);
+}
+
+/**
+ * Replace an indirect edge by the intermediate entity and the two real
+ * relationships (placed between the two ends). Returns the new arrays.
+ */
+export function expandIndirect(model: Model, nodes: readonly SNode[], edges: readonly SEdge[], edgeId: string): { nodes: SNode[]; edges: SEdge[]; added: SNode } | null {
+  const e = edges.find((x) => x.id === edgeId);
+  const via = e?.data?.indirect?.via;
+  if (!e || !via || !model.has(via)) return null;
+  const byId = indexNodes(nodes);
+  const a = byId.get(e.source);
+  const b = byId.get(e.target);
+  if (!a || !b) return null;
+  const ra = absRect(a, byId);
+  const rb = absRect(b, byId);
+  const size = DEFAULT_SIZE.entity;
+  const want = { x: (ra.x + ra.w / 2 + rb.x + rb.w / 2) / 2, y: (ra.y + ra.h / 2 + rb.y + rb.h / 2) / 2 };
+  const p = findFreeSpot(allRects(nodes), size.w, size.h, want, 32);
+  const mid = entityNode(via, p);
+  const out: SEdge[] = edges.filter((x) => x.id !== edgeId);
+  for (const end of [a, b]) {
+    const k = knownEdgeData(model, entityOf(end)!, via);
+    if (!k) continue;
+    const [s, t] = k.forward ? [end.id, mid.id] : [mid.id, end.id];
+    out.push({ id: newEdgeId(), source: s, target: t, type: 'studio', data: k.data });
+  }
+  return { nodes: [...nodes, mid], edges: out, added: mid };
 }

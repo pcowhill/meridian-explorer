@@ -7,7 +7,7 @@ import { CHANNELS, RELATION_VERB, channelOf, type LiftedEdge, type Model, type R
 import type { EdgeData, SEdge, SNode } from '../types';
 import { absPos, indexNodes, nodeSize } from './geometry';
 
-export type EdgeStatus = 'known' | 'hypothetical' | 'unverified' | 'free';
+export type EdgeStatus = 'known' | 'hypothetical' | 'unverified' | 'indirect' | 'free';
 
 const pairCache = new WeakMap<Model, Map<string, Relation[]>>();
 
@@ -30,6 +30,7 @@ export function relationsForPair(model: Model, a: string, b: string): Relation[]
 /** Whether an edge between two nodes is backed by the model. */
 export function edgeStatus(model: Model, a: string | undefined, b: string | undefined, data: EdgeData | undefined): EdgeStatus {
   if (!a || !b) return 'free';
+  if (data?.indirect) return 'indirect';
   let rels = relationsForPair(model, a, b);
   if (data?.channel) {
     const onChannel = rels.filter((r) => channelOf(r.kind) === data.channel);
@@ -40,6 +41,39 @@ export function edgeStatus(model: Model, a: string | undefined, b: string | unde
 }
 
 export const channelLabel = (c: RelationChannel): string => CHANNELS.find((x) => x.id === c)?.label ?? c;
+
+/** An indirect link between two board entities: two relations through one entity not on the board. */
+export interface IndirectLink {
+  via: string;
+  relationIds: [string, string];
+  /** True when the chain starts at `a` (a → via → b). */
+  forward: boolean;
+  hypothetical: boolean;
+}
+
+const NOISE = new Set(['tests', 'documents', 'implements', 'actor-uses']);
+
+/** Is there any direct (non-structural) relation between the two entities? */
+export function hasDirectRelation(model: Model, a: string, b: string): boolean {
+  return relationsForPair(model, a, b).some((r) => !NOISE.has(r.kind));
+}
+
+/**
+ * A chain of exactly two relations from `a` to `b` through one intermediate
+ * that is neither inside a/b nor (by the caller's check) on the board.
+ */
+export function indirectLink(model: Model, a: string, b: string, onBoard: ReadonlySet<string> = new Set()): IndirectLink | null {
+  if (!model.has(a) || !model.has(b) || a === b || model.isWithin(a, b) || model.isWithin(b, a)) return null;
+  const chain = model.pathBetween(a, b, 2);
+  if (!chain || chain.length !== 2) return null;
+  const [r1, r2] = chain;
+  const start = model.isWithin(r1.from, a) ? r1.from : r1.to;
+  const via = r1.from === start ? r1.to : r1.from;
+  if (model.isWithin(via, a) || model.isWithin(via, b) || onBoard.has(via)) return null;
+  if (r2.from !== via && r2.to !== via) return null;
+  const forward = r1.from === start;
+  return { via, relationIds: [r1.id, r2.id], forward, hypothetical: r1.confidence === 'hypothetical' || r2.confidence === 'hypothetical' };
+}
 
 /** A short label for a group of relations. */
 export function describeRelations(rels: readonly Relation[], headline?: Relation): string {
@@ -154,7 +188,7 @@ export const newEdgeId = (): string => `e_${Date.now().toString(36)}${(edgeSeq++
  * entities already on the board (aggregated per pair + channel, like the Atlas).
  * When an entity appears several times, the nearest instance is connected.
  */
-export function autoConnect(model: Model, nodes: readonly SNode[], edges: readonly SEdge[], newNodeIds: ReadonlySet<string>): SEdge[] {
+export function autoConnect(model: Model, nodes: readonly SNode[], edges: readonly SEdge[], newNodeIds: ReadonlySet<string>, opts: { indirect?: boolean } = {}): SEdge[] {
   const byId = indexNodes(nodes);
   const instances = new Map<string, SNode[]>();
   for (const n of nodes) {
@@ -163,7 +197,7 @@ export function autoConnect(model: Model, nodes: readonly SNode[], edges: readon
   }
   const newEntities = new Set([...newNodeIds].map((id) => entityOf(byId.get(id))).filter((x): x is string => !!x));
   if (!newEntities.size) return [];
-  const existing = new Set(edges.map((e) => pairKey(e.source, e.target, e.data?.channel)));
+  const existing = new Set(edges.map((e) => pairKey(e.source, e.target, e.data?.indirect ? 'indirect' : e.data?.channel)));
   const centre = (n: SNode) => {
     const p = absPos(n, byId);
     const s = nodeSize(n);
@@ -194,6 +228,52 @@ export function autoConnect(model: Model, nodes: readonly SNode[], edges: readon
         existing.add(key);
         out.push({ id: newEdgeId(), source: s, target: t, type: 'studio', data: { ...data } });
       }
+    }
+  }
+  if (opts.indirect !== false) out.push(...indirectEdges(model, nodes, [...edges, ...out], newNodeIds, existing));
+  return out;
+}
+
+/**
+ * For newly placed entities with no direct relation to anything on the board:
+ * up to `perNode` dotted "via X" links to board entities reachable through one
+ * entity that is not on the board.
+ */
+function indirectEdges(model: Model, nodes: readonly SNode[], edges: readonly SEdge[], newNodeIds: ReadonlySet<string>, existing: Set<string>, perNode = 2): SEdge[] {
+  const byId = indexNodes(nodes);
+  const fresh = [...newNodeIds].map((id) => byId.get(id)).filter((n): n is SNode => !!n && !!entityOf(n) && !n.hidden);
+  // Bounded work: indirect search is for one-by-one additions, not whole generated boards.
+  if (!fresh.length || fresh.length > 4) return [];
+  const board = nodes.filter((n) => entityOf(n) && !n.hidden && model.has(entityOf(n)!));
+  if (board.length > 80) return [];
+  const onBoard = new Set(board.map((n) => entityOf(n)!));
+  const connected = new Set(edges.flatMap((e) => [e.source, e.target]));
+  const centre = (n: SNode) => {
+    const p = absPos(n, byId);
+    const s = nodeSize(n);
+    return { x: p.x + s.w / 2, y: p.y + s.h / 2 };
+  };
+  const out: SEdge[] = [];
+  for (const n of fresh) {
+    const e = entityOf(n)!;
+    if (!model.has(e) || connected.has(n.id)) continue;
+    const others = board.filter((m) => m.id !== n.id && entityOf(m) !== e);
+    if (others.some((m) => hasDirectRelation(model, e, entityOf(m)!))) continue;
+    const c = centre(n);
+    const found: { m: SNode; link: IndirectLink; d: number }[] = [];
+    for (const m of others) {
+      const link = indirectLink(model, e, entityOf(m)!, onBoard);
+      if (!link) continue;
+      const cm = centre(m);
+      found.push({ m, link, d: Math.hypot(cm.x - c.x, cm.y - c.y) });
+    }
+    found.sort((x, y) => x.d - y.d);
+    for (const { m, link } of found.slice(0, perNode)) {
+      const key = pairKey(n.id, m.id, 'indirect');
+      if (existing.has(key)) continue;
+      existing.add(key);
+      const [s, t] = link.forward ? [n.id, m.id] : [m.id, n.id];
+      out.push({ id: newEdgeId(), source: s, target: t, type: 'studio', data: { label: `via ${model.entity(link.via)?.name ?? link.via}`, indirect: { via: link.via, relationIds: link.relationIds }, strokeStyle: 'dotted', arrow: 'end' } });
     }
   }
   return out;

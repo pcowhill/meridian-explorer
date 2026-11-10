@@ -122,6 +122,7 @@ export function HypoLegend() {
       if (e.hidden) return false;
       if (e.data?.proposed) return true;
       const st = edgeStatus(model, entityOf(byId.get(e.source)), entityOf(byId.get(e.target)), e.data);
+      if (st === 'indirect') return (e.data?.indirect?.relationIds ?? []).some((rid) => model.relation(rid)?.confidence === 'hypothetical');
       return st === 'hypothetical' || st === 'unverified';
     });
   }, [nodes, edges, model]);
