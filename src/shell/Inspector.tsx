@@ -5,7 +5,7 @@
  * shape, the code behind it, what it relates to, the workflows it takes part
  * in, and what a change to it would affect.
  */
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   ArrowRight,
@@ -35,7 +35,7 @@ import {
 import { useApp, type InspectorTab, type Selection } from '@/state/app';
 import { useModel, useScenarios } from '@/state/hooks';
 import { useWorkspace } from '@/state/workspace';
-import { Badge, Button, cn, Empty, IconButton, SectionTitle, Tabs, Tip } from '@/ui/primitives';
+import { Badge, Button, cn, Empty, IconButton, renderInline, SectionTitle, Tabs, Tip } from '@/ui/primitives';
 import { CHANNEL_COLOR, ConfidenceBadge, entityColor, KindBadge, KindIcon, MethodBadge } from '@/ui/kinds';
 import { EntityChip, FieldTable } from '@/viewers/Fields';
 import { JsonView } from '@/viewers/JsonView';
@@ -55,11 +55,6 @@ function Paragraphs({ text }: { text?: string }) {
       ))}
     </div>
   );
-}
-
-/** Minimal inline formatting: `code` spans only. */
-export function renderInline(text: string): ReactNode[] {
-  return text.split(/(`[^`]+`)/g).map((part, i) => (part.startsWith('`') && part.endsWith('`') ? <code key={i}>{part.slice(1, -1)}</code> : <span key={i}>{part}</span>));
 }
 
 // ---------------------------------------------------------------------------
@@ -257,7 +252,7 @@ function EntityRows({ entities, model, onPick, max = 14 }: { entities: Entity[];
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[12px] font-semibold text-fg">{c.name}</span>
-            <span className="block truncate text-[11.5px] text-fg-muted">{c.summary}</span>
+            <span className="block truncate text-[11.5px] text-fg-muted">{renderInline(c.summary)}</span>
           </span>
           <span className="shrink-0 text-[10px] uppercase text-fg-subtle">{KIND_LABEL[c.kind]}</span>
         </button>
@@ -693,7 +688,7 @@ function ContractList({ model, entity }: { model: Model; entity: Entity }) {
             </span>
             <span className="min-w-0 flex-1">
               <code className="block truncate text-[11.5px] font-semibold text-fg">{c.path}</code>
-              <span className="block truncate text-[11.5px] text-fg-muted">{c.summary}</span>
+              <span className="block truncate text-[11.5px] text-fg-muted">{renderInline(c.summary)}</span>
             </span>
           </button>
         ))}

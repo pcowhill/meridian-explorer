@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { ExternalLink, Lock, LockOpen, Play, ShieldCheck, Timer, TriangleAlert, Zap } from 'lucide-react';
 import { REPO, type Contract, type FlowStep } from '@/model';
 import { useModel } from '@/state/hooks';
-import { Badge, Button, cn, SectionTitle, Tip } from '@/ui/primitives';
+import { Badge, Button, cn, renderInline, SectionTitle, Tip } from '@/ui/primitives';
 import { ConfidenceBadge, MethodBadge, statusColor } from '@/ui/kinds';
 import { EntityChip, FieldTable } from './Fields';
 import { JsonView } from './JsonView';
@@ -74,7 +74,7 @@ export function FlowList({ flow, onPick }: { flow: FlowStep[]; onPick?: (step: F
               </button>
               {expanded && (
                 <div className="mb-1 ml-1 mt-1 flex flex-col gap-1.5 border-l-2 border-line pl-2">
-                  {f.detail && <p className="m-0 text-[12px] text-fg-muted">{f.detail}</p>}
+                  {f.detail && <p className="m-0 text-[12px] text-fg-muted">{renderInline(f.detail)}</p>}
                   {f.rejects?.map((r, k) => (
                     <div key={k} className="flex items-start gap-1.5 text-[11.5px]">
                       <span className="mt-px shrink-0 rounded px-1 font-mono text-[10.5px] font-bold" style={{ color: statusColor(r.status), background: `color-mix(in srgb, ${statusColor(r.status)} 14%, transparent)` }}>
@@ -82,7 +82,7 @@ export function FlowList({ flow, onPick }: { flow: FlowStep[]; onPick?: (step: F
                       </span>
                       <span className="text-fg-muted">
                         {r.code && <code className="mr-1 text-fg">{r.code}</code>}
-                        when {r.when}
+                        when {renderInline(r.when)}
                       </span>
                     </div>
                   ))}
@@ -228,15 +228,15 @@ export function ContractView({ contract, compact }: { contract: Contract; compac
           <code className="break-all text-[13px] font-semibold text-fg">{contract.path}</code>
           <ConfidenceBadge confidence={contract.confidence} />
         </div>
-        <p className="mb-2 mt-1.5 text-[12.5px] text-fg-muted">{contract.summary}</p>
+        <p className="mb-2 mt-1.5 text-[12.5px] text-fg-muted">{renderInline(contract.summary)}</p>
         <AuthSummary contract={contract} />
-        {contract.auth.notes && <p className="mb-0 mt-1.5 text-[11.5px] text-fg-subtle">{contract.auth.notes}</p>}
+        {contract.auth.notes && <p className="mb-0 mt-1.5 text-[11.5px] text-fg-subtle">{renderInline(contract.auth.notes)}</p>}
       </div>
 
       {contract.integrationNotes && (
         <div className="rounded-md border-l-[3px] border-accent bg-surface-2 px-2.5 py-2 text-[12px] text-fg">
           <div className="mb-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-fg-subtle">For integrators</div>
-          {contract.integrationNotes}
+          {renderInline(contract.integrationNotes)}
         </div>
       )}
 
@@ -284,7 +284,7 @@ export function ContractView({ contract, compact }: { contract: Contract; compac
         {response && (
           <div className="flex flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2 text-[12px] text-fg-muted">
-              {response.description}
+              <span>{renderInline(response.description)}</span>
               {response.typeRef && <EntityChip id={response.typeRef} />}
             </div>
             {response.fields && response.fields.length > 0 && !compact && <FieldTable fields={response.fields} />}
@@ -307,7 +307,7 @@ export function ContractView({ contract, compact }: { contract: Contract; compac
                       </span>
                     </td>
                     <td className="w-[30%] px-1 py-1.5 font-mono text-[11px] text-fg">{e.code ?? '—'}</td>
-                    <td className="px-2 py-1.5 text-fg-muted">{e.when}</td>
+                    <td className="px-2 py-1.5 text-fg-muted">{renderInline(e.when)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -328,7 +328,7 @@ export function ContractView({ contract, compact }: { contract: Contract; compac
             {contract.sideEffects.map((s) => (
               <li key={s} className="flex gap-2 text-[12px] text-fg-muted">
                 <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-warn" />
-                {s}
+                <span>{renderInline(s)}</span>
               </li>
             ))}
           </ul>

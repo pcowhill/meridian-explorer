@@ -108,11 +108,11 @@ const entities: Entity[] = [
     parent: 'meridian',
     summary: 'Public marketing website plus the authenticated banking portal customers use to view accounts and move money.',
     description:
-      'A React + Vite single-page app (workspace `@simbank/customer`). Public routes market the bank and take account-opening applications; routes wrapped in `RequireAuth` form the banking portal (dashboard, account detail, move money, cards, loans & CDs, scheduled payments, statements).\n\nIt never talks to the database. Every read and write goes through the Backend API with `fetch` (session cookie + CSRF header), and it holds a Socket.IO connection only for the backend-status pill.',
+      'A React + Vite single-page app (workspace `@simbank/customer`). Public routes market the bank and take account-opening applications; routes wrapped in `RequireAuth` form the banking portal (dashboard, account detail, move money, cards, loans & CDs, scheduled payments, statements).\n\nIt never talks to the database. Every read and write goes through the Backend API with `fetch` (session cookie + CSRF header). It opens no Socket.IO connection: `socket.io-client` is a dependency, but nothing in the app imports it — the backend-status pill polls `GET /status` instead.',
     audience: {
       executive: 'The website customers use: learn about the bank, open an account, check balances and move money.',
       'end-user': 'The banking website: sign in, see your accounts, transfer money, manage cards, loans and scheduled payments.',
-      systems: 'React 18 SPA served as static files; talks to the API on its own origin (`/api/*`, `/socket.io`). Local dev port 5173.',
+      systems: 'React 18 SPA served as static files; talks to the API on its own origin (`/api/*`, `/status`) over HTTP only. Local dev port 5173.',
     },
     detail: 1,
     tech: ['React 18', 'Vite', 'Tailwind CSS', 'react-router'],
@@ -574,7 +574,7 @@ const relations: Relation[] = [
     label: 'HTTPS · JSON · cookie session',
     summary: 'Every read and action in the customer app is a `fetch` call to the Backend API.',
     description:
-      'Requests carry the customer session cookie (`credentials: "include"`), an `x-meridian-app` surface header and — for state-changing calls — the `x-meridian-csrf` double-submit header. Responses are JSON; failures use `{ error, code }` with conventional HTTP status codes. In a production build the app calls its own origin and a reverse proxy forwards `/api/*`, `/health` and `/status` to the backend.',
+      'Requests carry the customer session cookie (`credentials: "include"`) and — for state-changing calls — the `x-meridian-csrf` double-submit header. The customer app sends no surface header; the backend falls back to the request Origin to pick the customer cookie. Responses are JSON; failures use `{ error, code }` with conventional HTTP status codes. In a production build the app calls its own origin and a reverse proxy forwards `/api/*`, `/health` and `/status` to the backend.',
     protocol: 'HTTP/1.1 JSON (fetch, credentials: include)',
     detail: 1,
     sources: [
@@ -590,7 +590,7 @@ const relations: Relation[] = [
     label: 'HTTPS · JSON · staff session',
     summary: 'The operations console reads queues and performs every operator action through staff-only endpoints.',
     description:
-      'Same transport as the customer app but with the OPERATIONS session cookie, so a customer session can never act as staff. `/api/ops/*` requires `ops_agent` or `admin`; `/api/admin/*` requires `admin`.',
+      'Same transport as the customer app but with the OPERATIONS session cookie (selected by the `x-meridian-surface: operations` header the console sends), so a customer session can never act as staff. `/api/ops/*` requires `ops_agent` or `admin`; `/api/admin/*` requires `admin`.',
     protocol: 'HTTP/1.1 JSON (fetch, credentials: include)',
     detail: 1,
     sources: [{ file: 'apps/operations/src/lib/api.ts' }, { file: 'apps/backend/src/routes/ops.ts' }],
@@ -603,7 +603,7 @@ const relations: Relation[] = [
     label: 'Socket.IO · ops room',
     summary: 'The backend pushes request changes and simulated events to staff consoles in real time.',
     description:
-      'The console opens a Socket.IO connection. At handshake the server resolves the operations session cookie and joins staff sockets to the `ops` room. `ops:request_changed` and `ops:external_event` are broadcast to that room only; `sim:welcome` and `sim:heartbeat` go to every socket.',
+      'The console opens a Socket.IO connection. At handshake the server resolves the operations session cookie and joins staff sockets to the `ops` room. `ops:request_changed` and `ops:external_event` are broadcast to that room only; `sim:welcome` and `sim:heartbeat` go to every socket.\n\nThe customer app does not open a socket at all. If a customer-origin socket did connect, the server would greet it but never join it to the `ops` room (pinned by `realtime.test.ts`).',
     protocol: 'Socket.IO 4 (WebSocket with HTTP long-polling fallback)',
     bidirectional: true,
     detail: 1,
@@ -612,21 +612,6 @@ const relations: Relation[] = [
       { file: 'apps/backend/src/ops/realtime.ts', start: 34, end: 51, symbol: 'SocketOpsRealtime' },
       { file: 'apps/operations/src/lib/useOpsSocket.ts' },
     ],
-  },
-  {
-    id: 'rel:customer<->backend:ws',
-    from: 'backend',
-    to: 'customer',
-    kind: 'websocket',
-    label: 'Socket.IO · welcome + heartbeat',
-    summary: 'Customer sockets receive only the public welcome and heartbeat events — never operator data.',
-    description:
-      'Both apps share one Socket.IO server. A customer-origin socket is never joined to the `ops` room, so it only ever sees `sim:welcome` and the 10-second `sim:heartbeat` (server time + simulated time).',
-    protocol: 'Socket.IO 4',
-    bidirectional: true,
-    detail: 2,
-    confidence: 'verified',
-    sources: [{ file: 'apps/backend/src/realtime.ts', start: 16, end: 27, symbol: 'NEVER joins the ops room' }],
   },
   {
     id: 'rel:backend->db',

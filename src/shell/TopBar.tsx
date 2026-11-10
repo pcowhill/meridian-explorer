@@ -349,11 +349,11 @@ export function TopBar() {
         type="button"
         onClick={() => setCommandOpen(true)}
         data-testid="search-button"
-        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-surface-2 px-2.5 text-left text-[12.5px] text-fg-subtle transition-colors hover:border-line-strong hover:text-fg-muted md:max-w-[340px]"
+        className="flex h-8 w-9 shrink-0 items-center gap-2 rounded-md border border-line bg-surface-2 px-2.5 text-left text-[12.5px] text-fg-subtle transition-colors hover:border-line-strong hover:text-fg-muted lg:w-[220px] 2xl:w-[320px]"
       >
         <Search size={14} className="shrink-0" />
-        <span className="min-w-0 flex-1 truncate">Search components, endpoints, types, scenarios…</span>
-        <kbd>/</kbd>
+        <span className="hidden min-w-0 flex-1 truncate lg:inline">Search Meridian…</span>
+        <span className="hidden lg:inline"><kbd>/</kbd></span>
       </button>
       <div className="flex-1" />
       <AudienceControl />

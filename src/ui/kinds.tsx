@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 /** Visual vocabulary shared by every mode: one colour + icon per entity kind and relation channel. */
 import {
   Activity,

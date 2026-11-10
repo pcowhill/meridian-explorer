@@ -52,7 +52,7 @@ const entities: Entity[] = [
     parent: 'be.http',
     summary: 'The route plugin for account-opening applications (public) and joint-owner invitations (signed-in customers).',
     description:
-      'Registers five endpoints. The application endpoint is the only unauthenticated mutation in the API besides login: it is CSRF-exempt and guarded only by rateLimit("onboarding"), keyed by client IP. The invitation mutations use [requireAuth, rateLimit("risk")]; the invitation list needs only requireAuth.\n\nValidation failures are answered with `{ error, code: "invalid_request", fields }`. `InvitationError` codes are mapped by `handleInvitationError`: not_found → 404, wrong_invitee / forbidden → 403, already_responded / limit_reached → 409.',
+      'Registers five endpoints. The application endpoint needs no session: it is one of the three paths on the CSRF exempt list (with login and logout) and is guarded only by rateLimit("onboarding"), keyed by client IP. The invitation mutations use [requireAuth, rateLimit("risk")]; the invitation list needs only requireAuth.\n\nValidation failures are answered with `{ error, code: "invalid_request", fields }`. `InvitationError` codes are mapped by `handleInvitationError`: not_found → 404, wrong_invitee / forbidden → 403, already_responded / limit_reached → 409.',
     audience: {
       executive: 'Where new customers apply and where existing customers share an account with someone.',
       systems: 'One public POST (IP rate-limited) feeding the staff queue and the ops socket room, plus four session-authenticated invitation endpoints.',

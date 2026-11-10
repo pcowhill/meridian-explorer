@@ -135,8 +135,8 @@ export const testRelations: Relation[] = [
   rel(T_E2E_OPS, 'op:pages/RequestQueues', 'tests', 'approve from a queue card; item appears under Approved without reload', { sources: [src(FILES.e2eOperations, 28, 48, 'an operator can action a queue item and it updates live')] }),
   rel(T_E2E_OPS, 'feat:ops-review', 'tests', 'approve in the browser'),
   rel(T_E2E_OPS, 'feat:sim-messaging', 'tests', 'simulated SMS appears in the feed', { sources: [src(FILES.e2eOperations, 50, 64, 'a simulated external event appears live in the messaging feed')] }),
-  rel(T_E2E_ONB, 'cu:pages/OpenAccount', 'tests', 'submit the open-account form → confirmation with MER- reference', { sources: [src(FILES.e2eOnboarding, 35, 51, 'a visitor can submit a simulated open-account application')] }),
   rel(T_E2E_ONB, 'op:components/RequestDetailPanel', 'tests', 'onboarding context shown; panel reacts to approval; note after decision', { sources: [src(FILES.e2eOnboarding, 53, 97, 'an operator sees onboarding context, approves it (B-01), and can note after (B-02)')] }),
+  rel(T_E2E_ONB, EP.apply, 'tests', 'the open-account form submits and shows a MER- reference', { sources: [src(FILES.e2eOnboarding, 35, 51, 'a visitor can submit a simulated open-account application')] }),
   rel(T_E2E_ONB, 'feat:onboarding', 'tests', 'apply and approve in the browser'),
 ];
 

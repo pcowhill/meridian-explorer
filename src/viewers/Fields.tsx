@@ -4,7 +4,7 @@ import { KeyRound, Link2 } from 'lucide-react';
 import type { FieldDef } from '@/model';
 import { useApp } from '@/state/app';
 import { useModel } from '@/state/hooks';
-import { cn, Tip } from '@/ui/primitives';
+import { cn, renderInline, Tip } from '@/ui/primitives';
 import { entityColor, KindIcon } from '@/ui/kinds';
 
 /** A clickable reference to a model entity. Selecting it updates the shared selection. */
@@ -92,7 +92,7 @@ function Row({ f, depth, highlight, db, onPick, picked, proposed }: { f: FieldDe
           )}
         </td>
         <td className="py-1.5 pr-2 text-[11.5px] text-fg-muted">
-          {f.description}
+          {renderInline(f.description)}
           {f.values && (
             <div className="mt-1 flex flex-wrap gap-1">
               {f.values.map((v) => (
@@ -107,7 +107,7 @@ function Row({ f, depth, highlight, db, onPick, picked, proposed }: { f: FieldDe
               {f.rules.map((r) => (
                 <li key={r} className="flex gap-1.5 text-[11px] text-fg">
                   <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-warn" />
-                  {r}
+                  <span>{renderInline(r)}</span>
                 </li>
               ))}
             </ul>

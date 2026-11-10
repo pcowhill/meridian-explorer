@@ -9,7 +9,7 @@ export const stateMachines: StateMachine[] = [
   {
     id: 'sm:session',
     name: 'Session lifecycle',
-    summary: 'A session row is live from login until it is revoked by logout or left idle for eight hours; there is no status column — the state is derived.',
+    summary: 'A session row is live from login until it is revoked by logout or left idle for eight hours; there is no status column — the state is derived. (The browser cookie is set once, at login, with an 8-hour max-age and is not re-issued when the server-side expiry slides.)',
     subject: 'db:Session',
     field: 'Session.revokedAt / Session.expiresAt (derived)',
     initial: 'none',
@@ -101,7 +101,7 @@ export const glossary: GlossaryTerm[] = [
   {
     term: 'Session',
     definition:
-      'A signed-in browser. The browser holds an opaque random token in an httpOnly cookie; the database holds only the SHA-256 hash of it in a `Session` row. A session stays live while it is used at least once every eight hours and ends when the user logs out (revoked) or goes idle (expired).',
+      'A signed-in browser. The browser holds an opaque random token in an httpOnly cookie; the database holds only the SHA-256 hash of it in a `Session` row. On the server a session stays live while it is used at least once every eight hours and ends when the user logs out (revoked) or goes idle (expired). The cookie itself is set only at login with an 8-hour max-age, so a browser stops sending it eight hours after sign-in.',
     related: ['db:Session', 'be:auth/sessions#createSession', 'be:auth/sessions#resolveSession', 'be:auth/sessions#revokeSession', 'be:auth/tokens#hashSessionToken'],
     aliases: ['session cookie', 'idle timeout', 'sliding expiry'],
   },

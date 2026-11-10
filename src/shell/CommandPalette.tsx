@@ -132,7 +132,7 @@ function Palette({ onClose }: { onClose: () => void }) {
             value={query}
             onValueChange={setQuery}
             placeholder="Search components, endpoints, types, tables, scenarios, terms…"
-            className="h-12 min-w-0 flex-1 bg-transparent text-[14px] text-fg outline-none placeholder:text-fg-subtle"
+            className="h-12 min-w-0 flex-1 bg-transparent text-[14px] text-fg outline-none! placeholder:text-fg-subtle"
             data-testid="command-input"
           />
           <kbd>Esc</kbd>

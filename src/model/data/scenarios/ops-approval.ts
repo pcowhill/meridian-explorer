@@ -464,7 +464,7 @@ const steps: ScenarioStep[] = [
     to: CTX,
     label: 'useOpsData().requests',
     narrative:
-      'The page does not fetch on navigation. `OpsDataProvider` loaded the queue once at console start (`GET /api/ops/requests` and `GET /api/ops/events`) and has kept it current since through one Socket.IO connection. The page filters that in-memory list by status chip and queue lane.',
+      'The page does not fetch on navigation. `OpsDataProvider`, mounted once Sam was admitted to the console, loaded the queue then (`GET /api/ops/requests` and `GET /api/ops/events`) and has kept it current since through one Socket.IO connection. The page filters that in-memory list by status chip and queue lane.',
     audience: { systems: 'One HTTP load at start-up, then socket-driven upserts; no polling.' },
     detail: 3,
     variants: STAFF_VARIANTS,
@@ -613,7 +613,7 @@ const steps: ScenarioStep[] = [
     audience: { executive: 'What stops a customer from approving their own payment? The server checks the caller\'s role on every staff request.' },
     detail: 1,
     variants: ['forbidden-role'],
-    sources: [src(FILES.routesOps, 35, 39, 'Customers and')],
+    sources: [src('apps/operations/src/App.tsx', 39, 60, 'isOperatorRole(user.role)', 'The console shows the login screen to anyone who is not staff'), src(FILES.routesOps, 35, 39, 'Customers and')],
   },
   {
     id: 'forbidden-request',
@@ -734,7 +734,7 @@ const steps: ScenarioStep[] = [
     label: 'payment still pending',
     narrative: 'The request is still Pending in the staff queue and the ledger entry is still pending: Avery\'s current balance is $2,451.10 and her available balance $2,331.10, exactly as before.',
     audience: { dba: 'No OperationsRequest, LedgerEntry, AuditLog or SimulatedEvent row was written. The refusal itself is not audited.' },
-    detail: 2,
+    detail: 1,
     variants: ['forbidden-role'],
     confidence: 'inferred',
   },

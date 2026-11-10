@@ -555,8 +555,8 @@ function dismissSteps(prefix: string, variants: string[], customerResponse: Resp
   ];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _RESPONDED = [CF, CL, AF];
+/** Variants in which the customer responded before the operator decided. */
+export const RESPONDED = [CF, CL, AF];
 const APPROVED = [CF, AF];
 const REJECTED = [CL, OD, TL];
 

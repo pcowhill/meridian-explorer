@@ -38,7 +38,7 @@ export const entities: Entity[] = [
     detail: 3,
     summary: 'Returns the caller\'s relationship to an account (`owner`, `joint`, `authorized`, `viewer`) or `null` if they may not see it.',
     description:
-      'First looks up the `AccountAccess` grant by the composite unique key `(userId, accountId)` and returns its `relationship`. If there is no grant it reads `Account.userId` and returns `owner` when the caller owns the account. Otherwise `null` — for both "no such account" and "exists but not yours"; the caller decides which HTTP status to surface. Money movement, cards, lending and risk services all call this before acting on an account.',
+      'First looks up the `AccountAccess` grant by the composite unique key `(userId, accountId)` and returns its `relationship`. If there is no grant it reads `Account.userId` and returns `owner` when the caller owns the account. Otherwise `null` — for both "no such account" and "exists but not yours"; the caller decides which HTTP status to surface. The money-movement, scheduled-payment, card, lending and dispute services and the joint-invitation route all call this before acting on an account.',
     signature: 'export async function getAccountRelationship(prisma: PrismaClient, userId: string, accountId: string): Promise<AccountRelationship | null>',
     audience: {
       executive: 'The single check that decides whether a person is allowed to touch a given account.',
@@ -516,7 +516,7 @@ export const entities: Entity[] = [
     parent: 'be.auth',
     summary: 'The server-side session lifecycle on the `Session` table: create, resolve with a sliding idle timeout, and revoke.',
     description:
-      'A session is an opaque random token in the browser\'s cookie and a row whose `tokenHash` is the SHA-256 of that token. There is no status column: a session is live when `revokedAt` is null, `expiresAt` is in the future and its user is `active`. Session timestamps use the real clock, not the simulation clock.',
+      'A session is an opaque random token in the browser\'s cookie and a row whose `tokenHash` is the SHA-256 of that token. There is no status column: a session is live when `revokedAt` is null, `expiresAt` is in the future and its user is `active`. Session timestamps use the real clock, not the simulation clock.\n\nThe sliding timeout is server-side only. The cookie is set once, by the login route, with `Max-Age` 8 hours; nothing re-issues it when `expiresAt` slides, so a browser stops presenting the token eight hours after sign-in even if the row is still live.',
     tags: ['security', 'auth', 'data'],
     aliases: ['session', 'idle timeout', 'sliding expiry'],
     sources: [src(SESSIONS, 5, 13, 'Server-side session lifecycle')],

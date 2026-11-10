@@ -1,7 +1,7 @@
 /** State-machine diagram (SVG) with clickable states and transitions. */
 import { useMemo, useState } from 'react';
 import type { StateMachine } from '@/model';
-import { cn } from '@/ui/primitives';
+import { cn, renderInline } from '@/ui/primitives';
 import { ConfidenceBadge } from '@/ui/kinds';
 import { EntityChip } from './Fields';
 import { SourceView } from './CodeBlock';
@@ -193,7 +193,7 @@ export function StateMachineView({ machine, current, compact, onPickState }: Pro
               <span className="text-fg-muted">· {transition.label}</span>
               <ConfidenceBadge confidence={transition.confidence} compact />
             </div>
-            {transition.description && <p className="m-0 text-fg-muted">{transition.description}</p>}
+            {transition.description && <p className="m-0 text-fg-muted">{renderInline(transition.description)}</p>}
             {transition.by && (
               <div className="flex items-center gap-1.5 text-[11.5px] text-fg-subtle">
                 performed by <EntityChip id={transition.by} />
@@ -206,10 +206,10 @@ export function StateMachineView({ machine, current, compact, onPickState }: Pro
             <code className="font-semibold text-fg">{stateInfo.id}</code>
             {stateInfo.terminal && <span className="ml-1.5 rounded bg-surface-2 px-1 text-[10px] font-semibold uppercase text-fg-subtle">terminal</span>}
             {machine.initial === stateInfo.id && <span className="ml-1.5 rounded bg-surface-2 px-1 text-[10px] font-semibold uppercase text-fg-subtle">initial</span>}
-            <p className="m-0 mt-1 text-fg-muted">{stateInfo.description ?? 'No description recorded.'}</p>
+            <p className="m-0 mt-1 text-fg-muted">{renderInline(stateInfo.description ?? 'No description recorded.')}</p>
           </div>
         ) : (
-          machine.summary
+          renderInline(machine.summary)
         )}
       </div>
     </div>

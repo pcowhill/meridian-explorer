@@ -193,9 +193,7 @@ export const testRelations: Relation[] = [
   t('test:e2e/smoke.spec.ts', 'cu:pages/MarketingHome', 'loads with the simulation disclaimer', 'e2e/smoke.spec.ts', 10, 15, 'marketing home loads with a simulation disclaimer'),
 
   // ---- Specs defined by other slices, exercising customer pages ---------------
-  t('test:e2e/lending.spec.ts', 'cu:pages/Lending', 'lists seeded CD and loan with the simulated date; opens a 12-month CD', 'e2e/lending.spec.ts', 46, 91, 'a customer opens a new CD and sees it listed'),
   t('test:e2e/lending.spec.ts', 'cu:pages/AccountDetail', 'savings history shows a posted interest credit after the clock advances', 'e2e/lending.spec.ts', 119, 142, 'interest earned \\(simulated\\)'),
-  t('test:e2e/scheduled-payments.spec.ts', 'cu:pages/ScheduledPayments', 'create a bill-pay schedule, see it listed, cancel it', 'e2e/scheduled-payments.spec.ts', 38, 69, 'a customer schedules a bill payment, sees it listed, then cancels it'),
   t('test:e2e/scheduled-payments.spec.ts', 'cu:pages/Dashboard', 'quick link routes to Scheduled payments', 'e2e/scheduled-payments.spec.ts', 71, 76, 'the dashboard quick link routes to Scheduled payments'),
   t('test:e2e/cards-fraud-disputes.spec.ts', 'cu:pages/Wallet', 'freeze a card and see it become Frozen', 'e2e/cards-fraud-disputes.spec.ts', 38, 50, 'a customer freezes a card in the wallet'),
   t('test:e2e/cards-fraud-disputes.spec.ts', 'cu:components/TransactionList', 'dispute a posted transaction; the row flips to Disputed', 'e2e/cards-fraud-disputes.spec.ts', 52, 64, 'a customer disputes a posted transaction'),

@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 /**
  * Small, dependency-free UI primitives shared by every mode. All colours come
  * from the design tokens in styles/index.css.
@@ -17,6 +16,12 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+
+/** Minimal inline formatting for model prose: `code` spans. */
+export function renderInline(text: string | undefined): ReactNode[] {
+  if (!text) return [];
+  return text.split(/(`[^`]+`)/g).map((part, i) => (part.length > 2 && part.startsWith('`') && part.endsWith('`') ? <code key={i}>{part.slice(1, -1)}</code> : <span key={i}>{part}</span>));
+}
 
 export function cn(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
