@@ -74,7 +74,7 @@ import { navigate, type Direction } from './nav';
 import { Sidebar } from './Sidebar';
 import { requestCamera, useAtlasLocal } from './store';
 import { prefersReducedMotion, useScene, useTweenedRects, type Scene } from './useScene';
-import { afterExpand, ensureVisible, fitZoom, frameSelection, MAX_ZOOM, MIN_ZOOM, placeRect, READABLE_ZOOM, type Viewport } from './viewport';
+import { afterExpand, ensureVisible, fitZoom, frameSelection, MAX_ZOOM, MIN_ZOOM, placeRect, READABLE_ZOOM, type Size2, type Viewport } from './viewport';
 import { isContainer } from './visibility';
 import './atlas.css';
 
@@ -179,18 +179,27 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
 
   // ---- Viewport ---------------------------------------------------------------------
   const canvas = useMemo(() => ({ width, height }), [width, height]);
-  const go = useCallback((vp: Viewport | null, ms = 320) => vp && rf.setViewport(vp, { duration: duration(ms) }), [rf]);
+  const go = useCallback((vp: Viewport | null, ms = 260) => vp && rf.setViewport(vp, { duration: duration(ms) }), [rf]);
+  // The last camera goal, recomputed if the canvas resizes right after it (e.g. the inspector opening on selection).
+  const goal = useRef<{ at: number; compute: (c: Size2) => Viewport | null } | null>(null);
+  const aim = useCallback(
+    (compute: (c: Size2) => Viewport | null, ms = 260) => {
+      goal.current = { at: Date.now(), compute };
+      go(compute(canvas), ms);
+    },
+    [go, canvas],
+  );
   const fitAll = useCallback(
     (ms = 280) => {
       const b = boundsOf(scene.rects.values());
-      if (b && width && height) go(placeRect(b, Math.min(1.15, fitZoom(b, canvas)), canvas), ms);
+      if (b && width && height) aim((c) => placeRect(b, Math.min(1.15, fitZoom(b, c)), c), ms);
     },
-    [scene.rects, width, height, canvas, go],
+    [scene.rects, width, height, aim],
   );
   const zoomToSelection = useCallback(() => {
     const r = scene.selectedOnMap ? scene.rects.get(scene.selectedOnMap) : undefined;
-    if (r && width) go(placeRect(r, Math.max(MIN_ZOOM, Math.min(1.6, fitZoom(r, canvas) * 0.85)), canvas));
-  }, [scene.selectedOnMap, scene.rects, width, canvas, go]);
+    if (r && width) aim((c) => placeRect(r, Math.max(MIN_ZOOM, Math.min(1.6, fitZoom(r, c) * 0.85)), c));
+  }, [scene.selectedOnMap, scene.rects, width, aim]);
 
   /** Frame a selection that arrived from elsewhere: its surroundings, at a readable zoom. */
   const frameArrival = useCallback(
@@ -203,10 +212,10 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
       const parentRect = node.parent ? scene.rects.get(node.parent) : undefined;
       const frame = open || !parentRect ? r : parentRect;
       // The whole map (the root) may be fitted below the readable zoom; anything else may not.
-      const minZoom = isRoot || frame === scene.rects.get(scene.tree.root) ? Math.min(READABLE_ZOOM, fitZoom(frame, canvas)) : READABLE_ZOOM;
-      go(frameSelection(r, frame, canvas, { minZoom: Math.max(MIN_ZOOM, minZoom) }), ms);
+      const whole = isRoot || frame === scene.rects.get(scene.tree.root);
+      aim((c) => frameSelection(r, frame, c, { minZoom: whole ? Math.max(MIN_ZOOM, Math.min(READABLE_ZOOM, fitZoom(frame, c))) : READABLE_ZOOM }), ms);
     },
-    [scene.tree, scene.rects, canvas, go],
+    [scene.tree, scene.rects, aim],
   );
 
   // Camera policy: serve the selection. Fit everything only on explicit request (0, Home, Reset).
@@ -245,8 +254,9 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
         lastSel.current = sel;
         const r = scene.rects.get(intent.id);
         if (!r) return;
-        if (intent.id === scene.tree.root) go(placeRect(r, Math.min(1.1, fitZoom(r, canvas)), canvas));
-        else go(afterExpand(r, rf.getViewport(), canvas));
+        const vp0 = rf.getViewport();
+        if (intent.id === scene.tree.root) aim((c) => placeRect(r, Math.min(1.1, fitZoom(r, c)), c));
+        else aim((c) => afterExpand(r, vp0, c));
         return;
       }
       handled.current = intent.seq;
@@ -256,14 +266,15 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
         return;
       }
       const r = intent.id ? scene.rects.get(intent.id) : undefined;
-      if (r) go(ensureVisible(r, rf.getViewport(), canvas));
+      const vp0 = rf.getViewport();
+      if (r) aim((c) => ensureVisible(r, vp0, c));
       return;
     }
     if (sel !== lastSel.current) {
       lastSel.current = sel;
       if (sel) frameArrival(sel);
     }
-  }, [scene.rects, scene.selectedOnMap, scene.tree, scene.focus, scene.isolating, frameKey, intent, width, height, canvas, fitAll, frameArrival, go, rf]);
+  }, [scene.rects, scene.selectedOnMap, scene.tree, scene.focus, scene.isolating, frameKey, intent, width, height, canvas, fitAll, frameArrival, aim, rf]);
 
   // A new feature lens frames the parts that implement it.
   const lensKey = useApp((s) => s.atlas.lens);
@@ -274,8 +285,18 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
     if (!scene.lensIds) return;
     const hits = [...scene.lensIds].map((id) => scene.rects.get(id)).filter((r): r is Rect => !!r);
     const b = boundsOf(hits);
-    if (b) go(placeRect(b, Math.min(1.1, fitZoom(b, canvas) * 0.9), canvas));
-  }, [lensKey, scene.lensIds, scene.rects, width, canvas, go]);
+    if (b) aim((c) => placeRect(b, Math.min(1.1, fitZoom(b, c) * 0.9), c));
+  }, [lensKey, scene.lensIds, scene.rects, width, aim]);
+
+  // The canvas changed size (inspector opened/closed, sidebar toggled): re-aim a goal set moments ago.
+  const lastSize = useRef({ width, height });
+  useEffect(() => {
+    const prev = lastSize.current;
+    lastSize.current = { width, height };
+    if (!width || !height || (prev.width === width && prev.height === height)) return;
+    const g = goal.current;
+    if (g && Date.now() - g.at < 1500) go(g.compute({ width, height }), 220);
+  }, [width, height, go]);
 
   // Semantic-zoom font scaling without React renders.
   // Quantised so a wheel gesture restyles the nodes only every few percent of zoom.
