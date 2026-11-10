@@ -45,7 +45,7 @@ export interface Insets {
   left: number;
 }
 
-export const CHROME: Insets = { top: 100, right: 20, bottom: 20, left: 20 };
+export const CHROME: Insets = { top: 100, right: 20, bottom: 20, left: 56 };
 
 /** Lowest zoom the camera chooses on its own for a selection (users may zoom out further). */
 export const READABLE_ZOOM = 0.8;

@@ -84,6 +84,17 @@ export function Canvas() {
     if (e) selectEdge(e.id);
   }, []);
 
+  // Dropping a connection anywhere on a node (not only on a handle) connects to it.
+  const onConnectEnd = useCallback((ev: MouseEvent | TouchEvent, state: { isValid: boolean | null; fromNode: { id: string } | null }) => {
+    if (state.isValid || !state.fromNode) return;
+    const pt = 'changedTouches' in ev ? ev.changedTouches[0] : ev;
+    const el = document.elementFromPoint(pt.clientX, pt.clientY)?.closest('.react-flow__node');
+    const target = el?.getAttribute('data-id');
+    if (!target || target === state.fromNode.id) return;
+    const e = useStudio.getState().connect(state.fromNode.id, target);
+    if (e) selectEdge(e.id);
+  }, []);
+
   const onNodeClick = useCallback((ev: React.MouseEvent, node: SNode) => {
     const s = useStudio.getState();
     if (s.connectMode) {
@@ -164,6 +175,7 @@ export function Canvas() {
         onNodesChange={useStudio.getState().onNodesChange}
         onEdgesChange={useStudio.getState().onEdgesChange}
         onConnect={onConnect}
+        onConnectEnd={onConnectEnd}
         connectionMode={ConnectionMode.Loose}
         onNodeClick={onNodeClick}
         onNodeDoubleClick={onNodeDoubleClick}
