@@ -10,6 +10,7 @@ import { useApp } from '@/state/app';
 import { cn, IconButton, Popover, Segmented } from '@/ui/primitives';
 import { OUTCOME_COLOR, OUTCOME_LABEL, useTheater } from './context';
 import { pathsOverview, SPEEDS } from './logic';
+import { useElementSize } from './useElementSize';
 
 interface Props {
   playing: boolean;
@@ -24,9 +25,13 @@ export function Transport({ playing, onPlayPause, pauseAtDecisions, onPauseAtDec
   const setSpeed = useApp((s) => s.theaterSetSpeed);
   const last = steps.length - 1;
   const current = scenario.variants.find((v) => v.id === variant);
+  const bar = useRef<HTMLDivElement>(null);
+  const { width } = useElementSize(bar);
+  // Narrow: controls + counter + outcome on one row, the scrubber on its own full-width row.
+  const twoRows = width > 0 && width < 960;
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line bg-surface px-3 py-2" data-testid="transport">
+    <div ref={bar} className={cn('flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line bg-surface px-3 py-2', twoRows && 'gap-x-2')} data-testid="transport">
       <div className="flex items-center gap-0.5">
         <IconButton label="Restart" keys="Home" tipSide="top" onClick={() => go(0)} disabled={index === 0}>
           <RotateCcw size={15} />
@@ -55,9 +60,9 @@ export function Transport({ playing, onPlayPause, pauseAtDecisions, onPauseAtDec
         </IconButton>
       </div>
 
-      <Scrubber />
+      {!twoRows && <Scrubber />}
 
-      <div className="flex items-center gap-2">
+      <div className={cn('flex min-w-0 items-center gap-2', twoRows && 'ml-auto')}>
         <span className="whitespace-nowrap font-mono text-[12px] font-semibold tabular-nums text-fg" data-testid="step-counter" aria-live="polite">
           Step {Math.min(index + 1, steps.length)} of {steps.length}
         </span>
@@ -73,16 +78,14 @@ export function Transport({ playing, onPlayPause, pauseAtDecisions, onPauseAtDec
               onChange={(e) => switchVariant(e.target.value)}
               title="Outcome (O cycles)"
               className={cn(
-                'h-7 max-w-[240px] rounded-md border bg-surface pl-1.5 pr-6 text-[12px] font-medium text-fg focus:border-accent focus:outline-none',
+                'h-7 min-w-0 max-w-[320px] rounded-md border bg-surface pl-1.5 pr-6 text-[12px] font-medium text-fg focus:border-accent focus:outline-none',
                 current?.hypothetical ? 'border-dashed border-hypo text-hypo' : 'border-line',
               )}
               style={{ borderLeft: `3px solid ${current?.hypothetical ? 'var(--k-hypo)' : OUTCOME_COLOR[current?.outcome ?? 'info']}` }}
             >
               {scenario.variants.map((v) => (
                 <option key={v.id} value={v.id} data-variant={v.id}>
-                  {v.label}
-                  {v.outcome ? ` — ${OUTCOME_LABEL[v.outcome]}` : ''}
-                  {v.hypothetical ? ' (hypothetical)' : ''}
+                  {optionText(v.label, v.outcome, v.hypothetical)}
                 </option>
               ))}
             </select>
@@ -90,8 +93,21 @@ export function Transport({ playing, onPlayPause, pauseAtDecisions, onPauseAtDec
           </>
         )}
       </div>
+      {twoRows && (
+        <div className="flex basis-full">
+          <Scrubber />
+        </div>
+      )}
     </div>
   );
+}
+
+/** "Label — outcome", without repeating the outcome when the label already says it. */
+function optionText(label: string, outcome: string | undefined, hypothetical: boolean | undefined): string {
+  const o = outcome ? OUTCOME_LABEL[outcome] : '';
+  const stem = o.slice(0, 5).toLowerCase();
+  const suffix = o && !label.toLowerCase().includes(stem) ? ` — ${o}` : '';
+  return `${label}${suffix}${hypothetical ? ' (hypothetical)' : ''}`;
 }
 
 function Scrubber() {

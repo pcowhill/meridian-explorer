@@ -69,9 +69,9 @@ export function toSpec(e: LiftedEdge): EdgeSpec {
   };
 }
 
-/** Gentle thickness scale: 1.5px for one relation, ~4.5px for hundreds. */
+/** Gentle thickness scale: 1.25px for one relation, capped at 3.5px for big bundles. */
 export function strokeWidth(count: number): number {
-  return Math.min(4.5, 1.5 + Math.log2(Math.max(1, count)) * 0.45);
+  return Math.min(3.5, 1.25 + Math.log2(Math.max(1, count)) * 0.4);
 }
 
 export function chooseSides(A: Rect, B: Rect): [Side, Side] {
@@ -101,7 +101,7 @@ function portPoint(r: Rect, side: Side, index: number, total: number): Point {
   return { x: side === 'left' ? r.x : r.x + r.w, y: r.y + r.h / 2 + offset };
 }
 
-function arrow(tip: Point, n: Point, size = 7): string {
+function arrow(tip: Point, n: Point, size = 5): string {
   // n points out of the node the arrow enters; the arrow points against it.
   const bx = tip.x + n.x * size * 1.3;
   const by = tip.y + n.y * size * 1.3;

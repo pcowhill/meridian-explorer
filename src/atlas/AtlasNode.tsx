@@ -168,7 +168,7 @@ function AtlasNodeImpl({ data }: NodeProps<AtlasFlowNode>) {
   // ---- Stub (outside thing, focus mode) --------------------------------------
   if (data.stub) {
     return (
-      <div {...common} className={cn('atlas-node atlas-stub tint', hypo && 'hypothetical', fxClass)} title={`Outside the focus: ${data.name}. Click to leave focus and show it.`}>
+      <div {...common} data-testid="atlas-stub" className={cn('atlas-node atlas-stub tint', hypo && 'hypothetical', fxClass)} title={`Outside the focus: ${data.name}. Click to leave focus and show it.`}>
         <Handles />
         <KindIcon kind={data.kind} size={14} className="shrink-0" />
         <div className="min-w-0 flex-1">
@@ -239,6 +239,7 @@ function AtlasNodeImpl({ data }: NodeProps<AtlasFlowNode>) {
         <div className="atlas-root-cta">
           <ChevronRight size={13} /> Click to explore the system
         </div>
+        <span className="atlas-corner-toggle">{toggle}</span>
       </div>
     );
   }
@@ -260,9 +261,12 @@ function AtlasNodeImpl({ data }: NodeProps<AtlasFlowNode>) {
     >
       <Handles />
       {band === 'far' ? (
-        <div className="atlas-far-name" style={{ '--far-max': `${farMaxFont(data.name)}px` } as React.CSSProperties}>
-          {breakable(data.name)}
-        </div>
+        <>
+          <div className="atlas-far-name" style={{ '--far-max': `${farMaxFont(data.name)}px` } as React.CSSProperties}>
+            {breakable(data.name)}
+          </div>
+          {toggle && <span className="atlas-corner-toggle">{toggle}</span>}
+        </>
       ) : (
         <>
           <div className="flex min-w-0 items-start gap-1.5">

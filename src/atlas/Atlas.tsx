@@ -80,6 +80,7 @@ import './atlas.css';
 
 /** Giving React Flow a node handler keeps node pointer events on (clicks are handled inside AtlasNode). */
 const NOOP = () => undefined;
+const REGION_STYLE = { pointerEvents: 'none' as const };
 const nodeTypes: NodeTypes = { atlas: AtlasNode };
 const edgeTypes: EdgeTypes = { atlas: AtlasEdge };
 const HYPO_PARENT_KINDS = ['system', 'app', 'subsystem', 'package', 'datastore', 'infra'];
@@ -124,6 +125,8 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
         height: r.h,
         data,
         zIndex: nodeZ(data.depth),
+        // An open region's body must not swallow clicks meant for edges running under it.
+        style: data.expanded ? REGION_STYLE : undefined,
         draggable: false,
         selectable: false,
         connectable: false,
@@ -146,7 +149,7 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
         source: s.a,
         target: s.b,
         type: 'atlas',
-        data: { spec: s, geom },
+        data: { spec: s, geom, stub: !!(scene.nodeData.get(s.a)?.stub || scene.nodeData.get(s.b)?.stub) },
         zIndex: edgeZ(da, db),
         selectable: false,
         focusable: false,

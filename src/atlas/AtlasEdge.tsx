@@ -14,6 +14,8 @@ import { NEAR_ZOOM, useAtlasLocal } from './store';
 export interface AtlasEdgeData extends Record<string, unknown> {
   spec: EdgeSpec;
   geom: EdgeGeom;
+  /** One end is a focus-mode stub (drawn lighter than internal edges). */
+  stub?: boolean;
 }
 
 export type AtlasFlowEdge = Edge<AtlasEdgeData, 'atlas'>;
@@ -38,10 +40,12 @@ function AtlasEdgeImpl({ id, data }: EdgeProps<AtlasFlowEdge>) {
   const color = spec.hypothetical ? 'var(--k-hypo)' : CHANNEL_COLOR[spec.channel];
   const realtime = spec.channel === 'realtime';
   const dash = spec.hypothetical ? '4 4' : realtime ? '7 5' : undefined;
-  const base = strokeWidth(spec.count);
+  const stub = !!data!.stub;
+  const base = stub ? Math.min(2, strokeWidth(spec.count)) : strokeWidth(spec.count);
   const active = hoverSelf || selected;
   const width = active ? base + 1.5 : hoverEnd || fx === 'focus' ? base + 0.8 : base;
-  const opacity = fx === 'dim' ? 0.1 : active || hoverEnd || fx === 'focus' ? 1 : 0.78;
+  // Quiet by default so bundles do not dominate; full strength on hover, selection and highlight.
+  const opacity = fx === 'dim' ? 0.08 : active || fx === 'focus' ? 1 : hoverEnd ? 0.9 : stub ? 0.28 : 0.5;
   const showLabel = active || (near && labelOk && fx !== 'dim');
 
   const onClick = (e: MouseEvent) => {

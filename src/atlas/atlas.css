@@ -194,6 +194,8 @@
 
 /* Expanded region */
 .atlas-region {
+  /* Only the header band takes clicks: the body lets clicks through to edges below it and to the canvas. */
+  pointer-events: none;
   /* Translucent so edges running underneath stay visible (they never cross cards). */
   border: 1.5px solid color-mix(in srgb, var(--tint) 40%, var(--line));
   background: color-mix(in srgb, var(--tint) 5%, transparent);
@@ -204,6 +206,8 @@
   border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
 }
 .atlas-region-header {
+  pointer-events: auto;
+  cursor: pointer;
   container-type: inline-size;
   display: flex;
   align-items: center;
@@ -540,4 +544,10 @@
 }
 .atlas-minimap svg {
   width: 168px;
+}
+
+.atlas-corner-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
 }

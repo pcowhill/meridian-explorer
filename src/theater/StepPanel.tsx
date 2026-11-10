@@ -231,11 +231,11 @@ function DatabaseSection({ scenario, variant, steps, index }: { scenario: Scenar
           <Database size={11} aria-hidden /> Database
         </span>
       </SectionTitle>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-[11.5px] text-fg-muted">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <span className="min-w-0 text-[11.5px] text-fg-muted">
           {changed.length === 0 ? (fromStart ? 'Nothing has changed since the start.' : 'This step does not change the database.') : `${changed.length} table${changed.length === 1 ? '' : 's'} changed ${fromStart ? 'since the start' : 'by this step'}.`}
         </span>
-        <Switch checked={fromStart} onChange={setFromStart} label="Since start" className="text-[11.5px]!" />
+        <Switch checked={fromStart} onChange={setFromStart} label="Since start" className="shrink-0 whitespace-nowrap text-[11.5px]!" />
       </div>
       {balances.length > 0 && (
         <div className="mb-2 grid gap-1.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }} data-testid="balances">
