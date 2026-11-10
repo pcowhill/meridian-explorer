@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "model:verify": "tsx scripts/verify-model.ts",
+    "model:verify": "tsx scripts/gen-scenario-index.ts && tsx scripts/verify-model.ts",
     "model:snippets": "tsx scripts/extract-snippets.ts",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
   },

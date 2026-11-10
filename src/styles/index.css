@@ -1,0 +1,372 @@
+@import 'tailwindcss';
+@import '@xyflow/react/dist/style.css';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Everything in the app colours itself through these variables,
+   so light/dark themes and the three mode accents are one switch each.
+   --------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --canvas: #fafbfc;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --surface-3: #e6e9ef;
+  --line: #dde1e8;
+  --line-strong: #c3c9d4;
+  --fg: #111827;
+  --fg-muted: #4b5565;
+  --fg-subtle: #7b8494;
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 4px 14px rgb(16 24 40 / 0.07);
+  --shadow-lg: 0 10px 38px rgb(16 24 40 / 0.18), 0 2px 8px rgb(16 24 40 / 0.08);
+  --grid-dot: #cfd5df;
+
+  /* Mode accents (overridden per mode on .mode-*). */
+  --accent: #0d7f7a;
+  --accent-fg: #ffffff;
+
+  /* Entity kinds */
+  --k-system: #0f172a;
+  --k-app: #2456d6;
+  --k-package: #0e7490;
+  --k-datastore: #047857;
+  --k-subsystem: #475569;
+  --k-module: #4f46e5;
+  --k-route: #0369a1;
+  --k-endpoint: #0284c7;
+  --k-function: #7c3aed;
+  --k-type: #0f766e;
+  --k-db: #059669;
+  --k-event: #c2620a;
+  --k-page: #be185d;
+  --k-feature: #4d7c0f;
+  --k-role: #57534e;
+  --k-external: #6b7280;
+  --k-infra: #52525b;
+  --k-test: #64748b;
+  --k-hypo: #9333ea;
+
+  /* Relation channels */
+  --c-http: #2563eb;
+  --c-realtime: #d97706;
+  --c-call: #6d5bd0;
+  --c-data: #059669;
+  --c-type: #64748b;
+  --c-security: #e11d48;
+  --c-ops: #78716c;
+  --c-structure: #94a3b8;
+
+  /* Status */
+  --ok: #047857;
+  --warn: #b45309;
+  --bad: #be123c;
+  --info: #1d4ed8;
+
+  /* Confidence */
+  --conf-verified: #047857;
+  --conf-simplified: #0369a1;
+  --conf-inferred: #b45309;
+  --conf-hypothetical: #9333ea;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b0f16;
+  --canvas: #0e131b;
+  --surface: #141a24;
+  --surface-2: #1b2330;
+  --surface-3: #263041;
+  --line: #273142;
+  --line-strong: #3a475c;
+  --fg: #e7ecf3;
+  --fg-muted: #a8b3c4;
+  --fg-subtle: #76839a;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.4);
+  --grid-dot: #2a3445;
+
+  --accent: #2dd4bf;
+  --accent-fg: #06201d;
+
+  --k-system: #e2e8f0;
+  --k-app: #7aa2ff;
+  --k-package: #4fd1e8;
+  --k-datastore: #34d399;
+  --k-subsystem: #a3b1c6;
+  --k-module: #a5a0ff;
+  --k-route: #5cc0f5;
+  --k-endpoint: #56c4fa;
+  --k-function: #c4a5ff;
+  --k-type: #4fd6c4;
+  --k-db: #4ade80;
+  --k-event: #fbae5c;
+  --k-page: #f58fc0;
+  --k-feature: #a8d85a;
+  --k-role: #c4bdb6;
+  --k-external: #a3acb9;
+  --k-infra: #b4b4be;
+  --k-test: #9aa8bb;
+  --k-hypo: #c98bff;
+
+  --c-http: #6ea3ff;
+  --c-realtime: #fbbf24;
+  --c-call: #a99cff;
+  --c-data: #34d399;
+  --c-type: #94a3b8;
+  --c-security: #fb7185;
+  --c-ops: #b3aaa3;
+  --c-structure: #7b8798;
+
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --bad: #fb7185;
+  --info: #7aa2ff;
+
+  --conf-verified: #34d399;
+  --conf-simplified: #56c4fa;
+  --conf-inferred: #fbbf24;
+  --conf-hypothetical: #c98bff;
+}
+
+.mode-atlas {
+  --accent: #0d7f7a;
+}
+.mode-theater {
+  --accent: #6d3fd6;
+}
+.mode-studio {
+  --accent: #c2500a;
+}
+[data-theme='dark'] .mode-atlas {
+  --accent: #2dd4bf;
+  --accent-fg: #06201d;
+}
+[data-theme='dark'] .mode-theater {
+  --accent: #b79bff;
+  --accent-fg: #160a33;
+}
+[data-theme='dark'] .mode-studio {
+  --accent: #ff9a52;
+  --accent-fg: #2a1002;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-info: var(--info);
+  --color-hypo: var(--k-hypo);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --shadow-panel: var(--shadow);
+  --shadow-pop: var(--shadow-lg);
+}
+
+/* --------------------------------------------------------------------------- */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+code,
+kbd,
+pre,
+.mono {
+  font-family: var(--font-mono);
+}
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  padding: 0 0.4em;
+  height: 1.6em;
+  font-size: 0.82em;
+  line-height: 1;
+  border-radius: 4px;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+/* Utility: colour an element by entity kind / channel through one variable. */
+.tint {
+  --tint: var(--k-subsystem);
+  --tint-soft: color-mix(in srgb, var(--tint) 12%, var(--surface));
+  --tint-line: color-mix(in srgb, var(--tint) 45%, var(--line));
+}
+
+/* Hypothetical styling used by every mode: dashed outline + diagonal hatch. */
+.hypothetical {
+  --tint: var(--k-hypo) !important;
+  border-style: dashed !important;
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--k-hypo) 9%, transparent) 0 6px,
+    transparent 6px 12px
+  ) !important;
+}
+
+.proposed-removal {
+  opacity: 0.55;
+  text-decoration: line-through;
+  text-decoration-color: var(--bad);
+}
+
+/* Prose inside inspectors. */
+.prose-sm p {
+  margin: 0 0 0.6em;
+}
+.prose-sm p:last-child {
+  margin-bottom: 0;
+}
+.prose-sm code {
+  font-size: 0.92em;
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+/* Presenter mode hides secondary chrome. */
+.presenting .presenter-hide {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* React Flow theming */
+.react-flow {
+  --xy-background-color: var(--canvas);
+  --xy-node-border-radius: 8px;
+  --xy-edge-stroke: var(--line-strong);
+  --xy-minimap-background-color: var(--surface);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--bg) 70%, transparent);
+  --xy-controls-button-background-color: var(--surface);
+  --xy-controls-button-background-color-hover: var(--surface-2);
+  --xy-controls-button-color: var(--fg);
+  --xy-controls-button-border-color: var(--line);
+  --xy-attribution-background-color: transparent;
+}
+.react-flow__attribution {
+  opacity: 0.45;
+  font-size: 9px;
+}
+.react-flow__attribution a {
+  color: var(--fg-subtle);
+}
+.react-flow__minimap {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.react-flow__controls {
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.react-flow__edge-path {
+  stroke-linecap: round;
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.18s ease-out both;
+}
