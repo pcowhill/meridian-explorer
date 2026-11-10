@@ -14,7 +14,19 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   build: {
-    chunkSizeWarningLimit: 1500,
+    chunkSizeWarningLimit: 2600,
+    rollupOptions: {
+      output: {
+        // Keep the (large, rarely changing) knowledge model and the vendor code in
+        // their own cacheable chunks, separate from the application shell.
+        manualChunks(id: string) {
+          if (id.includes('/src/model/data/')) return 'meridian-model';
+          if (id.includes('node_modules/@xyflow') || id.includes('node_modules/d3-')) return 'vendor-flow';
+          if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) return 'vendor-react';
+          return undefined;
+        },
+      },
+    },
   },
   test: {
     globals: true,
