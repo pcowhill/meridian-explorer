@@ -5,7 +5,7 @@ import { toSpec } from './edges';
 import { navigate } from './nav';
 import { layoutScene } from './scene';
 import { zoomBand } from './store';
-import { afterExpand, CHROME, ensureVisible, fitRect, frameSelection, inView, placeRect, READABLE_ZOOM } from './viewport';
+import { afterExpand, CHROME, EXPAND_FLOOR, ensureVisible, fitRect, frameSelection, inView, placeRect, READABLE_ZOOM } from './viewport';
 import { computeVisible } from './visibility';
 
 const tree = computeVisible(baseModel, {
@@ -138,13 +138,20 @@ describe('camera policy', () => {
     expect(afterExpand(r, vp, canvas)).toEqual(vp);
   });
 
-  it('after an expand zooms out only to the readable minimum and brings the header into view', () => {
+  it('after an expand zooms out to fit the container, down to a floor, with the header in view', () => {
     const vp = { x: 0, y: 0, zoom: 1 };
     const r = { x: 100, y: 100, w: 4000, h: 3000 };
     const next = afterExpand(r, vp, canvas);
-    expect(next.zoom).toBe(READABLE_ZOOM);
+    expect(next.zoom).toBe(EXPAND_FLOOR);
     expect(r.x * next.zoom + next.x).toBe(CHROME.left);
     expect(r.y * next.zoom + next.y).toBe(CHROME.top);
+  });
+
+  it('after an expand zooms out just enough to show a container that nearly fits', () => {
+    const next = afterExpand({ x: 0, y: 0, w: 1400, h: 600 }, { x: 0, y: 0, zoom: 1 }, canvas);
+    expect(next.zoom).toBeLessThan(READABLE_ZOOM);
+    expect(next.zoom).toBeGreaterThan(EXPAND_FLOOR);
+    expect(1400 * next.zoom).toBeLessThanOrEqual(canvas.width - CHROME.left - CHROME.right);
   });
 
   it('frames an arriving selection at a readable zoom, centred on it when the frame is too big', () => {

@@ -50,6 +50,9 @@ export const CHROME: Insets = { top: 100, right: 20, bottom: 20, left: 20 };
 /** Lowest zoom the camera chooses on its own for a selection (users may zoom out further). */
 export const READABLE_ZOOM = 0.8;
 
+/** Lowest zoom an expand-by-click will go to so the whole opened container is visible. */
+export const EXPAND_FLOOR = 0.45;
+
 /** Zoom at which `r` exactly fits the free area. */
 export function fitZoom(r: Rect, canvas: Size2, insets: Insets = CHROME): number {
   const w = Math.max(1, canvas.width - insets.left - insets.right);
@@ -79,12 +82,14 @@ export function placeRect(r: Rect, zoom: number, canvas: Size2, insets: Insets =
 
 /**
  * Camera after a container was expanded by the user: keep its header where it
- * is on screen, zoom out only as far as needed to show the new contents (but
- * not below readable), then pan the minimum to bring it into view.
+ * is on screen, zoom out only as far as needed to show the whole container
+ * (not below EXPAND_FLOOR), then pan the minimum to bring it into view.
  */
 export function afterExpand(r: Rect, vp: Viewport, canvas: Size2, insets: Insets = CHROME): Viewport {
-  const want = fitZoom(r, canvas, insets);
-  const zoom = Math.min(Math.max(vp.zoom, READABLE_ZOOM), Math.max(want, READABLE_ZOOM));
+  // Seeing the whole expanded container matters more than the readable zoom (the far band keeps
+  // names legible), down to EXPAND_FLOOR; never zoom in past what fits, nor beyond readable.
+  const want = fitZoom(r, canvas, insets) * 0.97;
+  const zoom = Math.min(Math.max(vp.zoom, Math.min(READABLE_ZOOM, want)), Math.max(want, EXPAND_FLOOR));
   const sx = r.x * vp.zoom + vp.x;
   const sy = r.y * vp.zoom + vp.y;
   let x = sx - r.x * zoom;
