@@ -42,7 +42,15 @@ export interface AtlasNodeData extends Record<string, unknown> {
 
 export type AtlasFlowNode = Node<AtlasNodeData, 'atlas'>;
 
-const HANDLE_STYLE = { opacity: 0, pointerEvents: 'none' as const, width: 1, height: 1, minWidth: 0, minHeight: 0, border: 0 };
+const HANDLE_STYLE = {
+  opacity: 0,
+  pointerEvents: 'none' as const,
+  width: 1,
+  height: 1,
+  minWidth: 0,
+  minHeight: 0,
+  border: 0,
+};
 
 function Handles() {
   return (
@@ -109,7 +117,13 @@ function AtlasNodeImpl({ data }: NodeProps<AtlasFlowNode>) {
     onMouseLeave: () => setLocal({ hoverNode: null }),
     style: { '--tint': color } as React.CSSProperties,
   };
-  const fxClass = cn(fx === 'dim' && 'atlas-dim', fx === 'focus' && 'atlas-fx-focus', fx === 'lens' && 'atlas-fx-lens', fx === 'lens-in' && 'atlas-fx-lens-in', selected && 'atlas-selected');
+  const fxClass = cn(
+    fx === 'dim' && 'atlas-dim',
+    fx === 'focus' && 'atlas-fx-focus',
+    fx === 'lens' && 'atlas-fx-lens',
+    fx === 'lens-in' && 'atlas-fx-lens-in',
+    selected && 'atlas-selected',
+  );
 
   const toggle = data.isContainer && !data.isFocusRoot && (
     <button
@@ -169,7 +183,10 @@ function AtlasNodeImpl({ data }: NodeProps<AtlasFlowNode>) {
   // ---- Expanded container region ------------------------------------------------
   if (data.expanded) {
     return (
-      <div {...common} className={cn('atlas-node atlas-region tint', `atlas-depth-${Math.min(data.depth, 4)}`, hypo && 'hypothetical', data.removal && 'proposed-removal', fxClass)}>
+      <div
+        {...common}
+        className={cn('atlas-node atlas-region tint', `atlas-depth-${Math.min(data.depth, 4)}`, hypo && 'hypothetical', data.removal && 'proposed-removal', fxClass)}
+      >
         <Handles />
         <div className="atlas-region-header">
           {toggle}
@@ -231,7 +248,14 @@ function AtlasNodeImpl({ data }: NodeProps<AtlasFlowNode>) {
   return (
     <div
       {...common}
-      className={cn('atlas-node atlas-card tint', data.isContainer && 'atlas-card-container', data.emphasis && 'atlas-emphasis', hypo && 'hypothetical', data.removal && 'proposed-removal', fxClass)}
+      className={cn(
+        'atlas-node atlas-card tint',
+        data.isContainer && 'atlas-card-container',
+        data.emphasis && 'atlas-emphasis',
+        hypo && 'hypothetical',
+        data.removal && 'proposed-removal',
+        fxClass,
+      )}
       title={band === 'far' ? data.name : undefined}
     >
       <Handles />

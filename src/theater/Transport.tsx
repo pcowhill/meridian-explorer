@@ -179,7 +179,8 @@ function PathsButton() {
       {(close) => (
         <div data-testid="paths-overview">
           <div className="mb-1.5 px-1 text-[11.5px] text-fg-muted">
-            Grey steps are shared by every outcome; coloured ones are specific to that outcome. Click a row to switch.
+
+            Grey steps follow the main path (“{scenario.variants.find((v) => v.id === scenario.defaultVariant)?.label}”); coloured ones are where an outcome goes its own way. Click a row to switch.
           </div>
           <div className="flex flex-col gap-0.5">
             {rows.map((r) => {

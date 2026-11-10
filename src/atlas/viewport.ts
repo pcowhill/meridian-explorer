@@ -21,7 +21,11 @@ export function fitRect(r: Rect, canvas: Size2, opts: { maxZoom?: number; minZoo
   const availW = canvas.width * (1 - 2 * pad);
   const availH = canvas.height * (1 - 2 * pad);
   const zoom = Math.max(opts.minZoom ?? MIN_ZOOM, Math.min(opts.maxZoom ?? MAX_ZOOM, availW / Math.max(1, r.w), availH / Math.max(1, r.h)));
-  return { x: canvas.width / 2 - (r.x + r.w / 2) * zoom, y: canvas.height / 2 - (r.y + r.h / 2) * zoom, zoom };
+  return {
+    x: canvas.width / 2 - (r.x + r.w / 2) * zoom,
+    y: canvas.height / 2 - (r.y + r.h / 2) * zoom,
+    zoom,
+  };
 }
 
 /** Is the rect fully on screen (with a margin in screen pixels)? */
@@ -40,6 +44,11 @@ export function inView(r: Rect, vp: Viewport, canvas: Size2, margin = 24): boole
 export function ensureVisible(r: Rect, vp: Viewport, canvas: Size2, margin = 48): Viewport | null {
   if (inView(r, vp, canvas, margin / 2)) return null;
   const fits = r.w * vp.zoom <= canvas.width - 2 * margin && r.h * vp.zoom <= canvas.height - 2 * margin;
-  if (fits) return { x: canvas.width / 2 - (r.x + r.w / 2) * vp.zoom, y: canvas.height / 2 - (r.y + r.h / 2) * vp.zoom, zoom: vp.zoom };
+  if (fits)
+    return {
+      x: canvas.width / 2 - (r.x + r.w / 2) * vp.zoom,
+      y: canvas.height / 2 - (r.y + r.h / 2) * vp.zoom,
+      zoom: vp.zoom,
+    };
   return fitRect(r, canvas, { maxZoom: vp.zoom, padding: 0.06 });
 }

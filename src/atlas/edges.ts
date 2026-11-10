@@ -83,7 +83,12 @@ export function chooseSides(A: Rect, B: Rect): [Side, Side] {
   return A.y + A.h / 2 <= B.y + B.h / 2 ? ['bottom', 'top'] : ['top', 'bottom'];
 }
 
-const NORMAL: Record<Side, Point> = { top: { x: 0, y: -1 }, bottom: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+const NORMAL: Record<Side, Point> = {
+  top: { x: 0, y: -1 },
+  bottom: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+  right: { x: 1, y: 0 },
+};
 
 const center = (r: Rect): Point => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
 
@@ -119,8 +124,16 @@ export function routeEdges(specs: readonly EdgeSpec[], rects: ReadonlyMap<string
     sides.set(s.id, [sa, sb]);
     const ka = `${s.a}\u0000${sa}`;
     const kb = `${s.b}\u0000${sb}`;
-    (ports.get(ka) ?? ports.set(ka, []).get(ka)!).push({ edge: s.id, end: 'a', other: center(B) });
-    (ports.get(kb) ?? ports.set(kb, []).get(kb)!).push({ edge: s.id, end: 'b', other: center(A) });
+    (ports.get(ka) ?? ports.set(ka, []).get(ka)!).push({
+      edge: s.id,
+      end: 'a',
+      other: center(B),
+    });
+    (ports.get(kb) ?? ports.set(kb, []).get(kb)!).push({
+      edge: s.id,
+      end: 'b',
+      other: center(A),
+    });
   }
   const at = new Map<string, Point>();
   for (const [key, ends] of ports) {
@@ -143,7 +156,10 @@ export function routeEdges(specs: readonly EdgeSpec[], rects: ReadonlyMap<string
     const p1 = { x: p0.x + n0.x * k, y: p0.y + n0.y * k };
     const p2 = { x: p3.x + n3.x * k, y: p3.y + n3.y * k };
     const f = (v: number) => Math.round(v * 10) / 10;
-    const mid = { x: (p0.x + 3 * p1.x + 3 * p2.x + p3.x) / 8, y: (p0.y + 3 * p1.y + 3 * p2.y + p3.y) / 8 };
+    const mid = {
+      x: (p0.x + 3 * p1.x + 3 * p2.x + p3.x) / 8,
+      y: (p0.y + 3 * p1.y + 3 * p2.y + p3.y) / 8,
+    };
     out.set(s.id, {
       path: `M${f(p0.x)},${f(p0.y)} C${f(p1.x)},${f(p1.y)} ${f(p2.x)},${f(p2.y)} ${f(p3.x)},${f(p3.y)}`,
       mid,

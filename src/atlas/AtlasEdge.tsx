@@ -30,7 +30,10 @@ function AtlasEdgeImpl({ id, data }: EdgeProps<AtlasFlowEdge>) {
   const set = useAtlasLocal((s) => s.set);
   const near = useStore((s) => s.transform[2] >= NEAR_ZOOM);
   const selected = useApp(
-    (s) => s.selection?.type === 'edge' && s.selection.channel === spec.channel && ((s.selection.a === spec.a && s.selection.b === spec.b) || (s.selection.a === spec.b && s.selection.b === spec.a)),
+    (s) =>
+      s.selection?.type === 'edge' &&
+      s.selection.channel === spec.channel &&
+      ((s.selection.a === spec.a && s.selection.b === spec.b) || (s.selection.a === spec.b && s.selection.b === spec.a)),
   );
   const color = spec.hypothetical ? 'var(--k-hypo)' : CHANNEL_COLOR[spec.channel];
   const realtime = spec.channel === 'realtime';
@@ -51,7 +54,15 @@ function AtlasEdgeImpl({ id, data }: EdgeProps<AtlasFlowEdge>) {
     <>
       <g className={cn('atlas-edge', active && 'atlas-edge-active')} style={{ opacity, transition: 'opacity 160ms' }}>
         {active && <path d={geom.path} fill="none" stroke={color} strokeOpacity={0.18} strokeWidth={width + 7} strokeLinecap="round" />}
-        <path d={geom.path} fill="none" stroke={color} strokeWidth={width} strokeDasharray={dash} strokeLinecap="round" className={cn(realtime && !spec.hypothetical && 'atlas-flow')} />
+        <path
+          d={geom.path}
+          fill="none"
+          stroke={color}
+          strokeWidth={width}
+          strokeDasharray={dash}
+          strokeLinecap="round"
+          className={cn(realtime && !spec.hypothetical && 'atlas-flow')}
+        />
         {geom.arrowB && <polygon points={geom.arrowB} fill={color} />}
         {geom.arrowA && <polygon points={geom.arrowA} fill={color} />}
         <path
@@ -64,7 +75,10 @@ function AtlasEdgeImpl({ id, data }: EdgeProps<AtlasFlowEdge>) {
           data-channel={spec.channel}
           role="button"
           aria-label={title}
-          style={{ pointerEvents: fx === 'dim' ? 'none' : 'stroke', cursor: 'pointer' }}
+          style={{
+            pointerEvents: fx === 'dim' ? 'none' : 'stroke',
+            cursor: 'pointer',
+          }}
           onClick={onClick}
           onMouseEnter={() => set({ hoverEdge: id })}
           onMouseLeave={() => set({ hoverEdge: null })}
@@ -76,7 +90,10 @@ function AtlasEdgeImpl({ id, data }: EdgeProps<AtlasFlowEdge>) {
         <EdgeLabelRenderer>
           <div
             className={cn('atlas-edge-label nodrag nopan', active && 'is-active', spec.hypothetical && 'is-hypo')}
-            style={{ transform: `translate(-50%, -50%) translate(${geom.mid.x}px, ${geom.mid.y}px)`, ['--edge' as string]: color }}
+            style={{
+              transform: `translate(-50%, -50%) translate(${geom.mid.x}px, ${geom.mid.y}px)`,
+              ['--edge' as string]: color,
+            }}
           >
             <span className="atlas-edge-swatch" style={{ borderTopStyle: dash ? 'dashed' : 'solid' }} />
             {spec.label}

@@ -98,7 +98,12 @@ function SystemTree({ model, detail }: { model: Model; detail: number }) {
           }}
         />
         {filter && (
-          <button type="button" aria-label="Clear the tree filter" onClick={() => setLocal({ treeFilter: '' })} className="absolute right-4 top-1.5 rounded p-0.5 text-fg-subtle hover:text-fg">
+          <button
+            type="button"
+            aria-label="Clear the tree filter"
+            onClick={() => setLocal({ treeFilter: '' })}
+            className="absolute right-4 top-1.5 rounded p-0.5 text-fg-subtle hover:text-fg"
+          >
             <X size={13} />
           </button>
         )}
@@ -117,7 +122,10 @@ function SystemTree({ model, detail }: { model: Model; detail: number }) {
               aria-selected={sel}
               aria-expanded={r.container && !filter ? r.open : undefined}
               data-tree-entity={e.id}
-              className={cn('group flex items-center gap-1 rounded-md pr-1.5 text-[12.5px]', sel ? 'bg-[color-mix(in_srgb,var(--accent)_14%,var(--surface))] text-fg' : 'hover:bg-surface-2')}
+              className={cn(
+                'group flex items-center gap-1 rounded-md pr-1.5 text-[12.5px]',
+                sel ? 'bg-[color-mix(in_srgb,var(--accent)_14%,var(--surface))] text-fg' : 'hover:bg-surface-2',
+              )}
               style={{ paddingLeft: 4 + r.depth * 12 }}
             >
               {r.container && !filter ? (
@@ -142,7 +150,9 @@ function SystemTree({ model, detail }: { model: Model; detail: number }) {
                   <KindIcon kind={e.kind} size={12} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className={cn('block truncate', hiddenByDetail && 'text-fg-subtle', hypo && 'italic text-hypo', model.isProposedRemoval(e.id) && 'line-through')}>{e.name}</span>
+                  <span className={cn('block truncate', hiddenByDetail && 'text-fg-subtle', hypo && 'italic text-hypo', model.isProposedRemoval(e.id) && 'line-through')}>
+                    {e.name}
+                  </span>
                   {r.path && <span className="block truncate text-[10.5px] text-fg-subtle">{r.path}</span>}
                 </span>
                 {hypo && <span className="shrink-0 rounded border border-dashed border-hypo px-1 text-[9.5px] font-semibold uppercase text-hypo">Hypo</span>}
@@ -164,7 +174,12 @@ function Section({ title, right, children, defaultOpen = true, testId }: { title
   return (
     <section className="border-t border-line" data-testid={testId}>
       <div className="flex items-center gap-1 px-3 py-1.5">
-        <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex flex-1 items-center gap-1 text-left text-[10.5px] font-semibold uppercase tracking-[0.08em] text-fg-subtle hover:text-fg">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className="flex flex-1 items-center gap-1 text-left text-[10.5px] font-semibold uppercase tracking-[0.08em] text-fg-subtle hover:text-fg"
+        >
           {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           {title}
         </button>
@@ -201,10 +216,27 @@ function ChannelFilters({ counts }: { counts: Record<RelationChannel, number> })
               aria-pressed={on}
               title={`${c.description}. ${counts[c.id]} on the map right now.`}
               onClick={() => toggle(c.id)}
-              className={cn('inline-flex h-6 items-center gap-1.5 rounded-full border px-2 text-[11.5px] font-medium transition-colors', on ? 'text-fg' : 'border-line text-fg-subtle hover:text-fg')}
-              style={on ? { background: `color-mix(in srgb, ${color} 14%, var(--surface))`, borderColor: `color-mix(in srgb, ${color} 45%, var(--line))` } : undefined}
+              className={cn(
+                'inline-flex h-6 items-center gap-1.5 rounded-full border px-2 text-[11.5px] font-medium transition-colors',
+                on ? 'text-fg' : 'border-line text-fg-subtle hover:text-fg',
+              )}
+              style={
+                on
+                  ? {
+                      background: `color-mix(in srgb, ${color} 14%, var(--surface))`,
+                      borderColor: `color-mix(in srgb, ${color} 45%, var(--line))`,
+                    }
+                  : undefined
+              }
             >
-              <span className="inline-block w-3 border-t-2" style={{ borderColor: color, borderTopStyle: c.id === 'realtime' ? 'dashed' : 'solid', opacity: on ? 1 : 0.45 }} />
+              <span
+                className="inline-block w-3 border-t-2"
+                style={{
+                  borderColor: color,
+                  borderTopStyle: c.id === 'realtime' ? 'dashed' : 'solid',
+                  opacity: on ? 1 : 0.45,
+                }}
+              />
               {c.label}
               <span className={cn('rounded-full px-1 text-[10px] tabular-nums', on ? 'bg-surface text-fg-muted' : 'text-fg-subtle')}>{counts[c.id]}</span>
             </button>
@@ -221,7 +253,10 @@ function FeatureLens({ model }: { model: Model }) {
     () =>
       model
         .features()
-        .map((f) => ({ f, n: model.implementersOf(f.id).filter((e) => e.kind !== 'feature').length }))
+        .map((f) => ({
+          f,
+          n: model.implementersOf(f.id).filter((e) => e.kind !== 'feature').length,
+        }))
         .filter((x) => x.n > 0)
         .sort((a, b) => a.f.name.localeCompare(b.f.name)),
     [model],
@@ -233,7 +268,12 @@ function FeatureLens({ model }: { model: Model }) {
       defaultOpen={!!lens}
       right={
         active && (
-          <button type="button" className="inline-flex items-center gap-1 text-[11px] text-fg-subtle hover:text-fg" onClick={() => setLens(model, null)} aria-label="Turn the feature lens off">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 text-[11px] text-fg-subtle hover:text-fg"
+            onClick={() => setLens(model, null)}
+            aria-label="Turn the feature lens off"
+          >
             <X size={11} /> Off
           </button>
         )
@@ -251,7 +291,10 @@ function FeatureLens({ model }: { model: Model }) {
               data-feature={f.id}
               onClick={() => setLens(model, f.id)}
               title={f.summary}
-              className={cn('flex items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[12px]', on ? 'bg-[color-mix(in_srgb,var(--k-feature)_16%,var(--surface))] font-semibold' : 'hover:bg-surface-2')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[12px]',
+                on ? 'bg-[color-mix(in_srgb,var(--k-feature)_16%,var(--surface))] font-semibold' : 'hover:bg-surface-2',
+              )}
             >
               <Sparkles size={11} className="shrink-0" style={{ color: 'var(--k-feature)' }} />
               <span className="min-w-0 flex-1 truncate">{f.name}</span>
@@ -264,7 +307,22 @@ function FeatureLens({ model }: { model: Model }) {
   );
 }
 
-const LEGEND_KINDS: EntityKind[] = ['app', 'subsystem', 'module', 'route-group', 'endpoint', 'function', 'type', 'datastore', 'db-model', 'event', 'page', 'role', 'infra', 'external'];
+const LEGEND_KINDS: EntityKind[] = [
+  'app',
+  'subsystem',
+  'module',
+  'route-group',
+  'endpoint',
+  'function',
+  'type',
+  'datastore',
+  'db-model',
+  'event',
+  'page',
+  'role',
+  'infra',
+  'external',
+];
 
 function Legend() {
   return (
@@ -282,7 +340,13 @@ function Legend() {
       <div className="mt-2 flex flex-col gap-1">
         {CHANNELS.map((c) => (
           <span key={c.id} className="flex items-center gap-2 text-[11.5px] text-fg-muted">
-            <span className="inline-block w-6 border-t-2" style={{ borderColor: CHANNEL_COLOR[c.id], borderTopStyle: c.id === 'realtime' ? 'dashed' : 'solid' }} />
+            <span
+              className="inline-block w-6 border-t-2"
+              style={{
+                borderColor: CHANNEL_COLOR[c.id],
+                borderTopStyle: c.id === 'realtime' ? 'dashed' : 'solid',
+              }}
+            />
             {c.label}
           </span>
         ))}

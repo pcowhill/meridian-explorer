@@ -135,9 +135,11 @@ describe('variants', () => {
   it('summarises shared and divergent paths', () => {
     const rows = pathsOverview(tiny, 2);
     expect(rows).toHaveLength(2);
+    // Main path: "yes path" (s4) is the only step no other outcome has.
     expect(rows[0].divergesAt).toBe(2);
     expect(rows[1].cells[2]).toMatchObject({ id: 's5', shared: false, hypothetical: true });
-    expect(rows[0].cells[0].shared).toBe(true);
+    expect(rows[1].cells[0].shared).toBe(true);
+    expect(rows[1].cells[3].shared).toBe(true);
   });
   it('follows the current step across detail changes', () => {
     const at5 = visibleSteps(tiny, 'yes', 5);

@@ -66,7 +66,12 @@ export function arrangeRows(children: LayoutNode[]): LayoutNode[][] {
   }
   const rows: LayoutNode[][] = [...rowed.keys()]
     .sort((a, b) => a - b)
-    .map((r) => rowed.get(r)!.slice().sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)));
+    .map((r) =>
+      rowed
+        .get(r)!
+        .slice()
+        .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)),
+    );
   if (loose.length) {
     loose.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
     const cols = gridColumns(Math.max(loose.length, loose[0].gridTotal ?? loose.length));
@@ -85,7 +90,11 @@ interface Measured {
 function measure(node: LayoutNode): Measured {
   if (!node.children) return { w: node.size.w, h: node.size.h, kids: [] };
   if (node.children.length === 0) {
-    return { w: Math.max(node.size.w, LAYOUT.minExpandedWidth), h: LAYOUT.header + LAYOUT.emptyHeight, kids: [] };
+    return {
+      w: Math.max(node.size.w, LAYOUT.minExpandedWidth),
+      h: LAYOUT.header + LAYOUT.emptyHeight,
+      kids: [],
+    };
   }
   const rows = arrangeRows(node.children);
   const kids: Measured['kids'] = [];

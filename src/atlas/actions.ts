@@ -39,7 +39,9 @@ export function collapse(model: Model, id: string): void {
   const sel = app.selection;
   if (sel?.type === 'entity' && sel.id !== id && model.isWithin(sel.id, id)) app.selectEntity(id);
   const local = useAtlasLocal.getState();
-  local.set({ revealAll: local.revealAll.filter((x) => x !== id && !model.isWithin(x, id)) });
+  local.set({
+    revealAll: local.revealAll.filter((x) => x !== id && !model.isWithin(x, id)),
+  });
 }
 
 export function toggleExpand(model: Model, id: string): void {

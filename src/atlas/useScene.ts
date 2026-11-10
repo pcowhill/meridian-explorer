@@ -34,7 +34,16 @@ export interface Scene {
   isolating: boolean;
 }
 
-const ZERO: Record<RelationChannel, number> = { http: 0, realtime: 0, call: 0, data: 0, type: 0, security: 0, ops: 0, structure: 0 };
+const ZERO: Record<RelationChannel, number> = {
+  http: 0,
+  realtime: 0,
+  call: 0,
+  data: 0,
+  type: 0,
+  security: 0,
+  ops: 0,
+  structure: 0,
+};
 
 function emphasised(e: Entity, audience: AudienceId): boolean {
   const preset = AUDIENCES.find((a) => a.id === audience);
@@ -58,16 +67,31 @@ export function useScene(model: Model): Scene {
 
   const lensIds = useMemo(() => {
     if (!atlas.lens || !model.has(atlas.lens)) return null;
-    return new Set(model.implementersOf(atlas.lens).filter((e) => e.kind !== 'feature').map((e) => e.id));
+    return new Set(
+      model
+        .implementersOf(atlas.lens)
+        .filter((e) => e.kind !== 'feature')
+        .map((e) => e.id),
+    );
   }, [atlas.lens, model]);
 
   // 1. Visible tree (before isolation).
   const baseTree = useMemo(() => {
     const forced = [...pinned, ...(selectedEntity ? [selectedEntity] : []), ...(lensIds ?? [])];
-    let tree = computeVisible(model, { root, expanded: new Set(atlas.expanded), detail, forced, revealAll: new Set(revealAll), focus: !!focus });
+    let tree = computeVisible(model, {
+      root,
+      expanded: new Set(atlas.expanded),
+      detail,
+      forced,
+      revealAll: new Set(revealAll),
+      focus: !!focus,
+    });
     if (focus) {
       const chans = new Set(channels);
-      tree = addStubs(tree, focusStubs(model, focus, (r) => chans.has(channelOf(r.kind))));
+      tree = addStubs(
+        tree,
+        focusStubs(model, focus, (r) => chans.has(channelOf(r.kind))),
+      );
     }
     return tree;
   }, [model, root, atlas.expanded, detail, revealAll, pinned, selectedEntity, lensIds, focus, channels]);
@@ -99,7 +123,10 @@ export function useScene(model: Model): Scene {
     if (!isolating || !selectedEntity) return { tree: baseTree, specs: baseSpecs };
     const { inside, neighbours } = neighbourhood(baseTree, baseSpecs, selectedEntity);
     const t = isolateTree(baseTree, new Set([...inside, ...neighbours]));
-    return { tree: t, specs: baseSpecs.filter((e) => t.nodes.has(e.a) && t.nodes.has(e.b)) };
+    return {
+      tree: t,
+      specs: baseSpecs.filter((e) => t.nodes.has(e.a) && t.nodes.has(e.b)),
+    };
   }, [isolating, selectedEntity, baseTree, baseSpecs]);
 
   // 4. Layout + label plan (target geometry, not the animated one).
@@ -176,7 +203,12 @@ export function useScene(model: Model): Scene {
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 
 function lerpRect(a: Rect, b: Rect, t: number): Rect {
-  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, w: a.w + (b.w - a.w) * t, h: a.h + (b.h - a.h) * t };
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    w: a.w + (b.w - a.w) * t,
+    h: a.h + (b.h - a.h) * t,
+  };
 }
 
 export function prefersReducedMotion(): boolean {

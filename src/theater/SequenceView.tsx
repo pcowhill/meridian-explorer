@@ -44,7 +44,7 @@ export function SequenceView() {
     const hi = Math.max(...xs) + laneW / 2;
     let nextLeft = el.scrollLeft;
     if (lo < el.scrollLeft || hi > el.scrollLeft + el.clientWidth) nextLeft = Math.max(0, (lo + hi) / 2 - el.clientWidth / 2);
-    if (nextTop !== el.scrollTop || nextLeft !== el.scrollLeft) el.scrollTo({ top: nextTop, left: nextLeft, behavior });
+    if (nextTop !== el.scrollTop || nextLeft !== el.scrollLeft) el.scrollTo?.({ top: nextTop, left: nextLeft, behavior });
   }, [index, steps, participants, laneW, reduced]);
 
   return (

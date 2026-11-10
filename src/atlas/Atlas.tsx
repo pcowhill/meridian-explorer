@@ -52,7 +52,7 @@ import {
   Share2,
   Sparkles,
   Spline,
-  X,
+  PenTool,
   Clapperboard,
   ChevronRight,
   Home,
@@ -66,7 +66,7 @@ import { Button, cn, IconButton, MenuItem, MenuLabel, Popover, Tip } from '@/ui/
 import { KIND_COLOR, KindIcon, entityColor } from '@/ui/kinds';
 import { AtlasEdge, type AtlasFlowEdge } from './AtlasEdge';
 import { AtlasNode, type AtlasFlowNode } from './AtlasNode';
-import { collapse, resetMap, setLens, toggleExpand } from './actions';
+import { resetMap, setLens, toggleExpand } from './actions';
 import { edgeZ, nodeZ, routeEdges } from './edges';
 import { computeEmphasis, lensVisibleCount } from './emphasis';
 import { boundsOf, type Rect } from './layout';
@@ -116,7 +116,19 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
       const r = shown.get(id);
       const data = scene.nodeData.get(id);
       if (!r || !data) continue;
-      out.push({ id, type: 'atlas', position: { x: r.x, y: r.y }, width: r.w, height: r.h, data, zIndex: nodeZ(data.depth), draggable: false, selectable: false, connectable: false, focusable: false });
+      out.push({
+        id,
+        type: 'atlas',
+        position: { x: r.x, y: r.y },
+        width: r.w,
+        height: r.h,
+        data,
+        zIndex: nodeZ(data.depth),
+        draggable: false,
+        selectable: false,
+        connectable: false,
+        focusable: false,
+      });
     }
     return out;
   }, [scene.tree, scene.nodeData, shown]);
@@ -129,7 +141,16 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
       if (!geom) continue;
       const da = scene.nodeData.get(s.a)?.depth ?? 1;
       const db = scene.nodeData.get(s.b)?.depth ?? 1;
-      out.push({ id: s.id, source: s.a, target: s.b, type: 'atlas', data: { spec: s, geom }, zIndex: edgeZ(da, db), selectable: false, focusable: false });
+      out.push({
+        id: s.id,
+        source: s.a,
+        target: s.b,
+        type: 'atlas',
+        data: { spec: s, geom },
+        zIndex: edgeZ(da, db),
+        selectable: false,
+        focusable: false,
+      });
     }
     return out;
   }, [scene.specs, geoms, scene.nodeData]);
@@ -141,7 +162,15 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
       while (cur && !scene.tree.nodes.has(cur)) cur = model.entity(cur)?.parent;
       return cur;
     };
-    const fx = computeEmphasis({ tree: scene.tree, edges: scene.specs, selected: scene.selectedOnMap, highlight, spotlight, lens: scene.lensIds, representative });
+    const fx = computeEmphasis({
+      tree: scene.tree,
+      edges: scene.specs,
+      selected: scene.selectedOnMap,
+      highlight,
+      spotlight,
+      lens: scene.lensIds,
+      representative,
+    });
     useAtlasLocal.getState().set({ nodeFx: fx.nodeFx, edgeFx: fx.edgeFx, labelOk: scene.labelOk });
   }, [scene.tree, scene.specs, scene.selectedOnMap, scene.lensIds, scene.labelOk, highlight, spotlight, model]);
 
@@ -268,7 +297,12 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
       if (e.a === selEntity.id) neighbours.add(e.b);
       if (e.b === selEntity.id) neighbours.add(e.a);
     }
-    useApp.getState().sendToStudio({ title: selEntity.name, source: 'atlas', entities: [selEntity.id, ...[...neighbours].slice(0, 11)], note: `From the Architecture Atlas: ${selEntity.name} and what it connects to.` });
+    useApp.getState().sendToStudio({
+      title: selEntity.name,
+      source: 'atlas',
+      entities: [selEntity.id, ...[...neighbours].slice(0, 11)],
+      note: `From the Architecture Atlas: ${selEntity.name} and what it connects to.`,
+    });
   }, [selEntity, scene.specs]);
 
   const hypoParent = useMemo(() => {
@@ -280,7 +314,10 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
 
   const toggleLocal = (key: 'highlight' | 'spotlight') => {
     const s = useAtlasLocal.getState();
-    s.set({ [key]: !s[key], ...(key === 'highlight' ? { spotlight: false } : { highlight: false }) });
+    s.set({
+      [key]: !s[key],
+      ...(key === 'highlight' ? { spotlight: false } : { highlight: false }),
+    });
   };
   const arrow = (dir: Direction) => {
     const next = navigate(scene.tree, scene.rects, selOnMap, dir);
@@ -288,22 +325,118 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
   };
 
   useHotkeys([
-    { id: 'atlas.expand', keys: 'e', label: 'Expand / collapse the selected container', group: 'Architecture Atlas', run: () => selOnMap && toggleExpand(model, selOnMap) },
-    { id: 'atlas.focus', keys: 'f', label: 'Focus on the selected container (again to leave)', group: 'Architecture Atlas', run: doFocus },
-    { id: 'atlas.up', keys: 'u', label: 'Up one level / leave focus', group: 'Architecture Atlas', run: upOneLevel },
-    { id: 'atlas.fit', keys: '0', label: 'Zoom to fit', group: 'Architecture Atlas', run: () => fitAll() },
-    { id: 'atlas.zoomsel', keys: 'z', label: 'Zoom to selection', group: 'Architecture Atlas', run: zoomToSelection },
-    { id: 'atlas.deps', keys: 'd', label: 'Highlight dependencies of the selection', group: 'Architecture Atlas', run: () => toggleLocal('highlight') },
-    { id: 'atlas.isolate', keys: 'n', label: 'Isolate the neighbourhood of the selection', group: 'Architecture Atlas', run: () => useApp.getState().atlasIsolate(!useApp.getState().atlas.isolate) },
-    { id: 'atlas.spotlight', keys: 's', label: 'Spotlight the selection (for presenting)', group: 'Architecture Atlas', run: () => toggleLocal('spotlight') },
-    { id: 'atlas.sidebar', keys: 't', label: 'Show / hide the sidebar', group: 'Architecture Atlas', run: () => useAtlasLocal.getState().set({ sidebarOpen: !useAtlasLocal.getState().sidebarOpen }) },
-    { id: 'atlas.nav.up', keys: 'ArrowUp', label: 'Select the parent', group: 'Architecture Atlas', run: () => arrow('up') },
-    { id: 'atlas.nav.down', keys: 'ArrowDown', label: 'Select the first child', group: 'Architecture Atlas', run: () => arrow('down') },
-    { id: 'atlas.nav.left', keys: 'ArrowLeft', label: 'Select the previous sibling', group: 'Architecture Atlas', run: () => arrow('left') },
-    { id: 'atlas.nav.right', keys: 'ArrowRight', label: 'Select the next sibling', group: 'Architecture Atlas', run: () => arrow('right') },
-    { id: 'atlas.home', keys: 'Home', label: 'Collapse everything (back to the overview)', group: 'Architecture Atlas', run: resetMap },
-    { id: 'atlas.workflow', keys: 'w', label: 'Open the related workflow in the Theater', group: 'Architecture Atlas', run: openWorkflow },
-    { id: 'atlas.hypo', keys: 'shift+h', label: 'Add a hypothetical component', group: 'Architecture Atlas', run: () => setHypoOpen(true) },
+    {
+      id: 'atlas.expand',
+      keys: 'e',
+      label: 'Expand / collapse the selected container',
+      group: 'Architecture Atlas',
+      run: () => selOnMap && toggleExpand(model, selOnMap),
+    },
+    {
+      id: 'atlas.focus',
+      keys: 'f',
+      label: 'Focus on the selected container (again to leave)',
+      group: 'Architecture Atlas',
+      run: doFocus,
+    },
+    {
+      id: 'atlas.up',
+      keys: 'u',
+      label: 'Up one level / leave focus',
+      group: 'Architecture Atlas',
+      run: upOneLevel,
+    },
+    {
+      id: 'atlas.fit',
+      keys: '0',
+      label: 'Zoom to fit',
+      group: 'Architecture Atlas',
+      run: () => fitAll(),
+    },
+    {
+      id: 'atlas.zoomsel',
+      keys: 'z',
+      label: 'Zoom to selection',
+      group: 'Architecture Atlas',
+      run: zoomToSelection,
+    },
+    {
+      id: 'atlas.deps',
+      keys: 'd',
+      label: 'Highlight dependencies of the selection',
+      group: 'Architecture Atlas',
+      run: () => toggleLocal('highlight'),
+    },
+    {
+      id: 'atlas.isolate',
+      keys: 'n',
+      label: 'Isolate the neighbourhood of the selection',
+      group: 'Architecture Atlas',
+      run: () => useApp.getState().atlasIsolate(!useApp.getState().atlas.isolate),
+    },
+    {
+      id: 'atlas.spotlight',
+      keys: 's',
+      label: 'Spotlight the selection (for presenting)',
+      group: 'Architecture Atlas',
+      run: () => toggleLocal('spotlight'),
+    },
+    {
+      id: 'atlas.sidebar',
+      keys: 't',
+      label: 'Show / hide the sidebar',
+      group: 'Architecture Atlas',
+      run: () => useAtlasLocal.getState().set({ sidebarOpen: !useAtlasLocal.getState().sidebarOpen }),
+    },
+    {
+      id: 'atlas.nav.up',
+      keys: 'ArrowUp',
+      label: 'Select the parent',
+      group: 'Architecture Atlas',
+      run: () => arrow('up'),
+    },
+    {
+      id: 'atlas.nav.down',
+      keys: 'ArrowDown',
+      label: 'Select the first child',
+      group: 'Architecture Atlas',
+      run: () => arrow('down'),
+    },
+    {
+      id: 'atlas.nav.left',
+      keys: 'ArrowLeft',
+      label: 'Select the previous sibling',
+      group: 'Architecture Atlas',
+      run: () => arrow('left'),
+    },
+    {
+      id: 'atlas.nav.right',
+      keys: 'ArrowRight',
+      label: 'Select the next sibling',
+      group: 'Architecture Atlas',
+      run: () => arrow('right'),
+    },
+    {
+      id: 'atlas.home',
+      keys: 'Home',
+      label: 'Collapse everything (back to the overview)',
+      group: 'Architecture Atlas',
+      run: resetMap,
+    },
+    {
+      id: 'atlas.workflow',
+      keys: 'w',
+      label: 'Open the related workflow in the Theater',
+      group: 'Architecture Atlas',
+      run: openWorkflow,
+    },
+    {
+      id: 'atlas.hypo',
+      keys: 'shift+h',
+      label: 'Add a hypothetical component',
+      group: 'Architecture Atlas',
+      run: () => setHypoOpen(true),
+    },
   ]);
 
   const lensEntity = useApp((s) => (s.atlas.lens ? model.entity(s.atlas.lens) : undefined));
@@ -336,21 +469,23 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
         attributionPosition="bottom-center"
         aria-label="Architecture map"
       >
-        <MiniMap
-          className="presenter-hide atlas-minimap"
-          pannable
-          zoomable
-          ariaLabel="Mini map"
-          nodeBorderRadius={6}
-          nodeColor={(n) => {
-            const d = (n as AtlasFlowNode).data;
-            if (d.expanded) return 'transparent';
-            return d.confidence === 'hypothetical' ? 'var(--k-hypo)' : d.kind === 'system' ? 'var(--accent)' : KIND_COLOR[d.kind];
-          }}
-          nodeStrokeColor={(n) => ((n as AtlasFlowNode).data.expanded ? 'var(--line-strong)' : 'transparent')}
-          nodeStrokeWidth={3}
-          maskColor="color-mix(in srgb, var(--bg) 62%, transparent)"
-        />
+        {width >= 720 && (
+          <MiniMap
+            className="presenter-hide atlas-minimap"
+            pannable
+            zoomable
+            ariaLabel="Mini map"
+            nodeBorderRadius={6}
+            nodeColor={(n) => {
+              const d = (n as AtlasFlowNode).data;
+              if (d.expanded) return 'transparent';
+              return d.confidence === 'hypothetical' ? 'var(--k-hypo)' : d.kind === 'system' ? 'var(--accent)' : KIND_COLOR[d.kind];
+            }}
+            nodeStrokeColor={(n) => ((n as AtlasFlowNode).data.expanded ? 'var(--line-strong)' : 'transparent')}
+            nodeStrokeWidth={3}
+            maskColor="color-mix(in srgb, var(--bg) 62%, transparent)"
+          />
+        )}
       </ReactFlow>
 
       <Breadcrumbs model={model} scene={scene} onUp={upOneLevel} />
@@ -400,7 +535,10 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
           highlight={highlight}
           spotlight={spotlight}
           isolate={scene.isolating}
-          workflows={relatedWorkflows.map((s) => ({ id: s.id, title: s.title }))}
+          workflows={relatedWorkflows.map((s) => ({
+            id: s.id,
+            title: s.title,
+          }))}
           onToggle={() => toggleExpand(model, selOnMap)}
           onFocus={doFocus}
           onUp={upOneLevel}
@@ -520,7 +658,15 @@ function Banners({ model, scene, lensName, lensOnMap, shownEdges }: { model: Mod
   const items: ReactNode[] = [];
   if (scene.allFiltered) {
     items.push(
-      <Banner key="filtered" icon={<Spline size={13} />} action={<Button size="sm" variant="ghost" onClick={() => useApp.getState().atlasSetChannels(CHANNELS.map((c) => c.id))}>Show all</Button>}>
+      <Banner
+        key="filtered"
+        icon={<Spline size={13} />}
+        action={
+          <Button size="sm" variant="ghost" onClick={() => useApp.getState().atlasSetChannels(CHANNELS.map((c) => c.id))}>
+            Show all
+          </Button>
+        }
+      >
         Every relationship on the map is hidden by the relationship filters.
       </Banner>,
     );
@@ -533,14 +679,24 @@ function Banners({ model, scene, lensName, lensOnMap, shownEdges }: { model: Mod
   }
   if (scene.lensIds && lensName) {
     items.push(
-      <Banner key="lens" tone="feature" icon={<Sparkles size={13} />} action={<Button size="sm" variant="ghost" onClick={() => setLens(model, null)}>Turn off</Button>}>
+      <Banner
+        key="lens"
+        tone="feature"
+        icon={<Sparkles size={13} />}
+        action={
+          <Button size="sm" variant="ghost" onClick={() => setLens(model, null)}>
+            Turn off
+          </Button>
+        }
+      >
         {lensOnMap > 0 ? (
           <>
             Lens: <b>{lensName}</b> — {lensOnMap} of {scene.lensIds.size} implementing part{scene.lensIds.size === 1 ? '' : 's'} on the map.
           </>
         ) : (
           <>
-            Lens: <b>{lensName}</b> — none of its {scene.lensIds.size} implementing parts is visible in this view{scene.focus ? ' (they are outside the focus)' : ''}.
+            Lens: <b>{lensName}</b> — none of its {scene.lensIds.size} implementing parts is visible in this view
+            {scene.focus ? ' (they are outside the focus)' : ''}.
           </>
         )}
       </Banner>,
@@ -548,14 +704,30 @@ function Banners({ model, scene, lensName, lensOnMap, shownEdges }: { model: Mod
   }
   if (scene.isolating) {
     items.push(
-      <Banner key="iso" icon={<Share2 size={13} />} action={<Button size="sm" variant="ghost" onClick={() => useApp.getState().atlasIsolate(false)}>Show everything</Button>}>
+      <Banner
+        key="iso"
+        icon={<Share2 size={13} />}
+        action={
+          <Button size="sm" variant="ghost" onClick={() => useApp.getState().atlasIsolate(false)}>
+            Show everything
+          </Button>
+        }
+      >
         Showing only the selection, its neighbours and where they live.
       </Banner>,
     );
   }
   if (spotlight || highlight) {
     items.push(
-      <Banner key="fx" icon={spotlight ? <Presentation size={13} /> : <Share2 size={13} />} action={<Button size="sm" variant="ghost" onClick={() => setLocal({ spotlight: false, highlight: false })}>Turn off</Button>}>
+      <Banner
+        key="fx"
+        icon={spotlight ? <Presentation size={13} /> : <Share2 size={13} />}
+        action={
+          <Button size="sm" variant="ghost" onClick={() => setLocal({ spotlight: false, highlight: false })}>
+            Turn off
+          </Button>
+        }
+      >
         {spotlight ? 'Spotlight on the selection.' : 'Highlighting the selection’s dependencies.'}
         {!scene.selectedOnMap && ' Select something on the map.'}
       </Banner>,
@@ -618,7 +790,11 @@ function SelectionToolbar(p: ToolbarProps) {
       aria-label={`Actions for ${p.name}`}
       data-testid="atlas-selection-toolbar"
       className="atlas-seltool presenter-keep"
-      style={{ left: x, top: y, transform: below ? 'translate(-50%, 0)' : 'translate(-50%, -100%)' }}
+      style={{
+        left: x,
+        top: y,
+        transform: below ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+      }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <span className="atlas-seltool-name" title={`${p.name} · ${KIND_LABEL[p.kind]}`}>
@@ -641,14 +817,7 @@ function SelectionToolbar(p: ToolbarProps) {
       <IconButton label="Up one level" keys="U" size="sm" tipSide="top" onClick={p.onUp}>
         <ArrowUp size={14} />
       </IconButton>
-      <IconButton
-        label="Highlight dependencies"
-        keys="D"
-        size="sm"
-        tipSide="top"
-        active={p.highlight}
-        onClick={() => set({ highlight: !p.highlight, spotlight: false })}
-      >
+      <IconButton label="Highlight dependencies" keys="D" size="sm" tipSide="top" active={p.highlight} onClick={() => set({ highlight: !p.highlight, spotlight: false })}>
         <Share2 size={14} />
       </IconButton>
       <IconButton label="Isolate neighbourhood" keys="N" size="sm" tipSide="top" active={p.isolate} onClick={() => useApp.getState().atlasIsolate(!p.isolate)}>
@@ -664,7 +833,12 @@ function SelectionToolbar(p: ToolbarProps) {
           className="w-72"
           trigger={(t) => (
             <Tip label={`Related workflows (${p.workflows.length}) — W opens the best match`} keys="W" side="top">
-              <button type="button" aria-label="Related workflows" className="inline-flex h-7 w-7 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg" {...t}>
+              <button
+                type="button"
+                aria-label="Related workflows"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg"
+                {...t}
+              >
                 <Clapperboard size={14} />
               </button>
             </Tip>
@@ -691,10 +865,8 @@ function SelectionToolbar(p: ToolbarProps) {
         </Popover>
       )}
       <IconButton label="Add to Studio" size="sm" tipSide="top" onClick={p.onStudio}>
-        <X size={14} className="rotate-45" />
+        <PenTool size={14} />
       </IconButton>
     </div>
   );
 }
-
-export { collapse };

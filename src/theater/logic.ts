@@ -180,20 +180,24 @@ export function mapIndexOnVariantChange(scenario: Scenario, from: string, to: st
 
 export interface PathRow {
   variant: string;
-  /** One cell per visible step of this variant: shared by every variant, or specific. */
+  /** One cell per visible step of this variant: shared with the main path, or specific. */
   cells: { id: string; shared: boolean; hypothetical: boolean }[];
-  /** Index of the first step not shared by every variant (-1 if none). */
+  /** Index of the first step that leaves the main path (-1 if none). */
   divergesAt: number;
 }
 
-/** Which steps all variants share and where each variant diverges. */
+/**
+ * Where each outcome leaves the main path (the default variant). For the
+ * main path itself, a step counts as shared when any other outcome has it too.
+ */
 export function pathsOverview(scenario: Scenario, detail: DetailLevel): PathRow[] {
   const per = scenario.variants.map((v) => ({ v, steps: visibleSteps(scenario, v.id, detail) }));
-  const count = new Map<string, number>();
-  for (const p of per) for (const s of p.steps) count.set(s.id, (count.get(s.id) ?? 0) + 1);
-  const n = scenario.variants.length;
+  const main = new Set(visibleSteps(scenario, scenario.defaultVariant, detail).map((s) => s.id));
+  const others = new Map<string, number>();
+  for (const p of per) if (p.v.id !== scenario.defaultVariant) for (const s of p.steps) others.set(s.id, (others.get(s.id) ?? 0) + 1);
   return per.map(({ v, steps }) => {
-    const cells = steps.map((s) => ({ id: s.id, shared: (count.get(s.id) ?? 0) === n, hypothetical: isHypoStep(s) || !!v.hypothetical }));
+    const isMain = v.id === scenario.defaultVariant;
+    const cells = steps.map((s) => ({ id: s.id, shared: isMain ? others.has(s.id) : main.has(s.id), hypothetical: isHypoStep(s) || !!v.hypothetical }));
     return { variant: v.id, cells, divergesAt: cells.findIndex((c) => !c.shared) };
   });
 }

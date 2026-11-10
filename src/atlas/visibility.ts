@@ -78,7 +78,15 @@ export function computeVisible(model: Model, opts: VisibilityOptions): VisibleTr
     const kids = mapChildren(model, id);
     const container = kids.length > 0;
     const expanded = container && (opts.expanded.has(id) || (opts.focus && depth === 0));
-    const node: VisibleNode = { id, parent, depth, children: [], isContainer: container, expanded, hiddenCount: 0 };
+    const node: VisibleNode = {
+      id,
+      parent,
+      depth,
+      children: [],
+      isContainer: container,
+      expanded,
+      hiddenCount: 0,
+    };
     nodes.set(id, node);
     order.push(id);
     if (!expanded) return;
@@ -136,7 +144,17 @@ function siblingKey(model: Model, id: string): number {
 export function addStubs(tree: VisibleTree, stubs: string[]): VisibleTree {
   const nodes = new Map(tree.nodes);
   const add = stubs.filter((s) => !nodes.has(s));
-  for (const s of add) nodes.set(s, { id: s, parent: null, depth: 0, children: [], isContainer: false, expanded: false, hiddenCount: 0, stub: true });
+  for (const s of add)
+    nodes.set(s, {
+      id: s,
+      parent: null,
+      depth: 0,
+      children: [],
+      isContainer: false,
+      expanded: false,
+      hiddenCount: 0,
+      stub: true,
+    });
   return { ...tree, nodes, order: [...tree.order, ...add], stubs: add };
 }
 
@@ -158,9 +176,18 @@ export function isolateTree(tree: VisibleTree, keep: ReadonlySet<string>): Visib
   for (const id of tree.order) {
     if (!kept.has(id)) continue;
     const n = tree.nodes.get(id)!;
-    nodes.set(id, { ...n, children: n.children.filter((c) => kept.has(c)), hiddenCount: 0 });
+    nodes.set(id, {
+      ...n,
+      children: n.children.filter((c) => kept.has(c)),
+      hiddenCount: 0,
+    });
   }
-  return { ...tree, nodes, order: tree.order.filter((id) => kept.has(id)), stubs: tree.stubs.filter((s) => kept.has(s)) };
+  return {
+    ...tree,
+    nodes,
+    order: tree.order.filter((id) => kept.has(id)),
+    stubs: tree.stubs.filter((s) => kept.has(s)),
+  };
 }
 
 /** Visible descendants of a node (inclusive). */
