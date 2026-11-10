@@ -21,7 +21,7 @@ const key = (k: string, init: KeyboardEventInit = {}) => act(() => void window.d
 describe('Inspector', () => {
   it('explains the selected entity and switches sections', () => {
     render(<Inspector />);
-    expect(screen.getByText('Nothing selected')).toBeInTheDocument();
+    expect(screen.queryByTestId('inspector')).not.toBeInTheDocument();
     act(() => useApp.getState().selectEntity('ep:POST /api/transfers'));
     expect(screen.getByTestId('inspector-title')).toHaveTextContent('POST /api/transfers');
     fireEvent.click(screen.getByRole('tab', { name: /Contract/ }));

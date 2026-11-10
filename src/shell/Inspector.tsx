@@ -1090,7 +1090,8 @@ export function Inspector() {
   const select = useApp((s) => s.select);
   const [width, setWidth] = useState(400);
 
-  if (!open) return null;
+  // With nothing selected the panel gets out of the way, leaving the canvas the full width.
+  if (!open || !selection) return null;
 
   const startResize = (e: React.PointerEvent) => {
     e.preventDefault();
