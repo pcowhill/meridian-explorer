@@ -35,7 +35,7 @@ import {
 import { useApp, type InspectorTab, type Selection } from '@/state/app';
 import { useModel, useScenarios } from '@/state/hooks';
 import { useWorkspace } from '@/state/workspace';
-import { Badge, Button, cn, Empty, IconButton, renderInline, SectionTitle, Tabs, Tip } from '@/ui/primitives';
+import { Badge, Button, cn, Empty, IconButton, Prose, renderInline, SectionTitle, Tabs, Tip } from '@/ui/primitives';
 import { CHANNEL_COLOR, ConfidenceBadge, entityColor, KindBadge, KindIcon, MethodBadge } from '@/ui/kinds';
 import { EntityChip, FieldTable } from '@/viewers/Fields';
 import { JsonView } from '@/viewers/JsonView';
@@ -46,16 +46,7 @@ import { BalanceCalculator } from '@/viewers/BalanceCalculator';
 import { STEP_COLOR, STEP_LABEL } from '@/viewers/SequenceDiagram';
 import { ProposeChange } from './ProposeChange';
 
-function Paragraphs({ text }: { text?: string }) {
-  if (!text) return null;
-  return (
-    <div className="prose-sm text-[12.5px] leading-relaxed text-fg-muted">
-      {text.split(/\n\n+/).map((p, i) => (
-        <p key={i}>{renderInline(p)}</p>
-      ))}
-    </div>
-  );
-}
+const Paragraphs = Prose;
 
 // ---------------------------------------------------------------------------
 // Entity
@@ -98,7 +89,7 @@ function EntityActions({ model, entity }: { model: Model; entity: Entity }) {
   const appLive = entity.id === 'customer' ? REPO.live.customer : entity.id === 'operations' ? REPO.live.operations : null;
   const isFeature = entity.kind === 'feature';
   return (
-    <div className="flex flex-wrap gap-1.5" data-testid="entity-actions">
+    <div className="contents" data-testid="entity-actions">
       {mode !== 'atlas' && !isFeature && (
         <Button size="sm" icon={<MapIcon size={12} />} onClick={() => openInAtlas(entity.id)}>
           Show in Atlas

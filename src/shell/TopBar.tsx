@@ -57,7 +57,7 @@ function ModeSwitch() {
   const mode = useApp((s) => s.mode);
   const setMode = useApp((s) => s.setMode);
   return (
-    <div role="tablist" aria-label="Mode" className="flex items-center rounded-lg border border-line bg-surface-2 p-0.5">
+    <div role="tablist" aria-label="Mode" className="flex shrink-0 items-center rounded-lg border border-line bg-surface-2 p-0.5">
       {MODES.map((m) => {
         const Icon = MODE_ICON[m.id];
         const active = mode === m.id;
@@ -70,13 +70,13 @@ function ModeSwitch() {
               data-testid={`mode-${m.id}`}
               onClick={() => setMode(m.id)}
               className={cn(
-                `mode-${m.id} inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-semibold transition-colors`,
+                `mode-${m.id} inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-[12.5px] font-semibold transition-colors`,
                 active ? 'bg-surface text-accent shadow-[0_1px_2px_rgb(0_0_0/0.14)]' : 'text-fg-muted hover:text-fg',
               )}
             >
               <Icon size={14} />
-              <span className="hidden lg:inline">{m.label}</span>
-              <span className="lg:hidden">{m.label.split(' ')[1]}</span>
+              <span className="hidden xl:inline">{m.label}</span>
+              <span className="hidden sm:inline xl:hidden">{m.label.split(' ')[1]}</span>
             </button>
           </Tip>
         );
@@ -92,16 +92,16 @@ function AudienceControl() {
   const setDetail = useApp((s) => s.setDetail);
   const current = AUDIENCES.find((a) => a.id === audience)!;
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex shrink-0 items-center gap-1.5">
       <Popover
         align="end"
         className="w-80"
         trigger={(p) => (
           <Tip label="Who are you explaining to? Sets terminology and a starting level of detail." keys="A">
-            <button type="button" data-testid="audience-button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2 text-[12.5px] font-medium hover:bg-surface-2" {...p}>
+            <button type="button" data-testid="audience-button" className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-line bg-surface px-2 text-[12.5px] font-medium hover:bg-surface-2" {...p}>
               <Users size={13} className="text-fg-muted" />
-              <span className="hidden xl:inline text-fg-subtle">Audience</span>
-              <span>{current.short}</span>
+              <span className="hidden text-fg-subtle 2xl:inline">Audience</span>
+              <span className="whitespace-nowrap">{current.short}</span>
               <ChevronDown size={12} className="text-fg-subtle" />
             </button>
           </Tip>
@@ -129,7 +129,7 @@ function AudienceControl() {
         )}
       </Popover>
 
-      <div className="flex h-8 items-center rounded-md border border-line bg-surface" role="group" aria-label="Detail level" data-testid="detail-control">
+      <div className="flex h-8 shrink-0 items-center rounded-md border border-line bg-surface" role="group" aria-label="Detail level" data-testid="detail-control">
         <Tip label="Less detail" keys="-">
           <button type="button" aria-label="Less detail" disabled={detail <= 1} onClick={() => setDetail((detail - 1) as DetailLevel)} className="flex h-full w-6 items-center justify-center rounded-l-md text-fg-muted hover:bg-surface-2 disabled:opacity-30">
             <Minus size={12} />
@@ -175,13 +175,13 @@ function LayersControl() {
               type="button"
               data-testid="layers-button"
               className={cn(
-                'inline-flex h-8 items-center gap-1.5 rounded-md border px-2 text-[12.5px] font-medium',
+                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2 text-[12.5px] font-medium',
                 on ? 'border-dashed border-hypo bg-[color-mix(in_srgb,var(--k-hypo)_12%,var(--surface))] text-hypo' : 'border-line bg-surface hover:bg-surface-2',
               )}
               {...p}
             >
               <FlaskConical size={13} />
-              <span className="hidden xl:inline">{on ? `What-if: ${active.length} on` : 'What-if'}</span>
+              <span className="hidden whitespace-nowrap lg:inline">{on ? `What-if: ${active.length} on` : 'What-if'}</span>
               <ChevronDown size={12} className="opacity-60" />
             </button>
           </Tip>
@@ -330,9 +330,9 @@ export function TopBar() {
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-surface px-3" data-testid="top-bar">
-      <a href="#/atlas" className="mr-1 flex items-center gap-2 rounded-md pr-1 text-fg no-underline" aria-label="Meridian Explorer home">
+      <a href="#/atlas" className="mr-1 flex shrink-0 items-center gap-2 rounded-md pr-1 text-fg no-underline" aria-label="Meridian Explorer home">
         <Logo />
-        <span className="hidden text-[13.5px] font-semibold tracking-tight md:inline">
+        <span className="hidden whitespace-nowrap text-[13.5px] font-semibold tracking-tight 2xl:inline">
           Meridian <span className="font-normal text-fg-muted">Explorer</span>
         </span>
       </a>
@@ -349,13 +349,13 @@ export function TopBar() {
         type="button"
         onClick={() => setCommandOpen(true)}
         data-testid="search-button"
-        className="flex h-8 w-9 shrink-0 items-center gap-2 rounded-md border border-line bg-surface-2 px-2.5 text-left text-[12.5px] text-fg-subtle transition-colors hover:border-line-strong hover:text-fg-muted lg:w-[220px] 2xl:w-[320px]"
+        className="flex h-8 w-9 shrink-0 items-center gap-2 rounded-md border border-line bg-surface-2 px-2.5 text-left text-[12.5px] text-fg-subtle transition-colors hover:border-line-strong hover:text-fg-muted lg:w-[200px] 2xl:w-[300px]"
       >
         <Search size={14} className="shrink-0" />
         <span className="hidden min-w-0 flex-1 truncate lg:inline">Search Meridian…</span>
         <span className="hidden lg:inline"><kbd>/</kbd></span>
       </button>
-      <div className="flex-1" />
+      <div className="min-w-0 flex-1" />
       <AudienceControl />
       <LayersControl />
       <Tip label="Saved views, bookmarks and recent items" keys="B">
@@ -368,7 +368,7 @@ export function TopBar() {
       <Tip label="Presenter mode: hide the chrome for screensharing" keys="P">
         <button type="button" onClick={() => setPresenting(true)} data-testid="present-button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2 text-[12.5px] font-medium hover:bg-surface-2">
           <Presentation size={13} />
-          <span className="hidden xl:inline">Present</span>
+          <span className="hidden whitespace-nowrap xl:inline">Present</span>
         </button>
       </Tip>
       <HelpMenu />

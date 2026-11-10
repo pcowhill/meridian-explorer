@@ -23,6 +23,50 @@ export function renderInline(text: string | undefined): ReactNode[] {
   return text.split(/(`[^`]+`)/g).map((part, i) => (part.length > 2 && part.startsWith('`') && part.endsWith('`') ? <code key={i}>{part.slice(1, -1)}</code> : <span key={i}>{part}</span>));
 }
 
+/**
+ * Model prose: blank lines separate paragraphs; consecutive lines starting with
+ * `1.` / `-` / `•` become a list; `code` spans are rendered inline.
+ */
+export function Prose({ text, className }: { text?: string; className?: string }) {
+  if (!text) return null;
+  const blocks: ReactNode[] = [];
+  text.split(/\n\s*\n/).forEach((para, pi) => {
+    const lines = para.split('\n').map((l) => l.trim()).filter(Boolean);
+    let run: string[] = [];
+    let list: { ordered: boolean; items: string[] } | null = null;
+    const flush = (key: string) => {
+      if (run.length) blocks.push(<p key={`p${key}`}>{renderInline(run.join(' '))}</p>);
+      run = [];
+      if (list) {
+        const L = list.ordered ? 'ol' : 'ul';
+        blocks.push(
+          <L key={`l${key}`} className={list.ordered ? 'my-1 list-decimal space-y-1 pl-5' : 'my-1 list-disc space-y-1 pl-5'}>
+            {list.items.map((it, i) => (
+              <li key={i}>{renderInline(it)}</li>
+            ))}
+          </L>,
+        );
+      }
+      list = null;
+    };
+    lines.forEach((line, li) => {
+      const ordered = /^\d+[.)]\s+/.exec(line);
+      const bullet = /^[-•*]\s+/.exec(line);
+      if (ordered || bullet) {
+        const isOrdered = !!ordered;
+        if (run.length || (list && list.ordered !== isOrdered)) flush(`${pi}-${li}`);
+        list ??= { ordered: isOrdered, items: [] };
+        list.items.push(line.slice((ordered ?? bullet)![0].length));
+      } else if (list) {
+        // A wrapped continuation of the previous list item.
+        list.items[list.items.length - 1] += ` ${line}`;
+      } else run.push(line);
+    });
+    flush(`${pi}-end`);
+  });
+  return <div className={cn('prose-sm text-[12.5px] leading-relaxed text-fg-muted', className)}>{blocks}</div>;
+}
+
 export function cn(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
 }
@@ -468,8 +512,8 @@ export function Dialog({ open, onClose, title, children, footer, width = 560, bo
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="animate-fade-in flex max-h-[84vh] w-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-pop outline-none"
-        style={{ maxWidth: width }}
+        className="animate-fade-in flex max-h-[84vh] w-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-pop"
+        style={{ maxWidth: width, outline: 'none' }}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3">
           <h2 id={titleId} className="text-[14px] font-semibold">
