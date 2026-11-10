@@ -64,12 +64,12 @@ export const StudioEdge = memo(function StudioEdge({ id, source, target, data, s
   const dim = useStudio((s) => (s.focus ? !s.focus.edgeIds.includes(id) : false));
   const emphasised = useStudio((s) => s.focus?.mode === 'path' && s.focus.edgeIds.includes(id));
   const editing = useStudio((s) => s.editingEdgeId === id);
-  const hop = useStudio((s) => {
+  const hopKey = useStudio((s) => {
     const a = s.anim;
-    if (!a || a.index < 1) return null;
-    if (a.edges[a.index - 1] !== id) return null;
-    return { key: a.index, reverse: a.nodes[a.index - 1] !== source };
+    if (!a || a.index < 1 || a.edges[a.index - 1] !== id) return null;
+    return `${a.index}|${a.nodes[a.index - 1] !== source ? 1 : 0}`;
   });
+  const hop = hopKey ? { key: Number(hopKey.split('|')[0]), reverse: hopKey.endsWith('|1') } : null;
   const visited = useStudio((s) => !!s.anim && s.anim.edges.slice(0, s.anim.index).includes(id));
 
   const ea = sn?.type === 'entity' ? (sn.data as { entityId?: string }).entityId : undefined;

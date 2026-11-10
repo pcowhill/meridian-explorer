@@ -96,6 +96,8 @@ export function Canvas() {
       return;
     }
     if (ev.shiftKey || ev.metaKey || ev.ctrlKey) return;
+    // A plain click inside a multi-selection narrows it to the clicked node.
+    if (s.nodes.filter((n) => n.selected).length + s.edges.filter((e) => e.selected).length > 1) s.setSelection([node.id]);
     const sel = sharedSelectionForNode(node);
     if (sel) useApp.getState().select(sel);
   }, []);

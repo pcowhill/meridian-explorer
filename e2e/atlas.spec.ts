@@ -63,12 +63,15 @@ test.describe('Architecture Atlas', () => {
 
   test('focus isolates a subsystem and the breadcrumb returns to the whole system', async ({ page }) => {
     await open(page, '#/atlas?x=meridian,backend&sel=e:backend');
+    await expect(node(page, 'customer')).toBeVisible();
     await page.keyboard.press('f');
     await expect(node(page, 'be.money')).toBeVisible();
+    // Outside components are no longer map nodes; they remain only as faded stubs.
     await expect(node(page, 'customer')).toHaveCount(0);
+    await expect(page.locator('[data-testid="atlas-stub"][data-entity="customer"]')).toBeVisible();
     expect(page.url()).toContain('f=backend');
     await expect(page.getByTestId('atlas-breadcrumb')).toContainText('Backend API');
-    await page.getByTestId('atlas-breadcrumb').getByText('Meridian', { exact: true }).click();
+    await page.getByTestId('atlas-breadcrumb').locator('[data-crumb]').first().click();
     await expect(node(page, 'customer')).toBeVisible();
     expect(page.url()).not.toContain('f=backend');
   });

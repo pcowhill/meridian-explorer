@@ -73,7 +73,7 @@ function AtlasEdgeImpl({ id, data }: EdgeProps<AtlasFlowEdge>) {
           d={geom.path}
           fill="none"
           stroke="transparent"
-          strokeWidth={16}
+          strokeWidth={12}
           data-testid="atlas-edge"
           data-edge={`${spec.a}|${spec.b}|${spec.channel}`}
           data-channel={spec.channel}

@@ -67,10 +67,15 @@ function visibleRects() {
 
 /** Fit padding that keeps content clear of the floating panels and bars. */
 export function fitPadding(): { top: `${number}px`; right: `${number}px`; bottom: `${number}px`; left: `${number}px` } {
-  const panel = canvasEl?.parentElement?.querySelector('[data-testid=selection-panel]');
+  const panel = canvasEl?.parentElement?.querySelector('[data-testid=selection-panel]')?.getBoundingClientRect();
   const legend = canvasEl?.parentElement?.querySelector('[data-testid=hypo-legend]');
-  const right = panel ? Math.round(panel.getBoundingClientRect().width + 36) : 40;
-  return { top: `${legend ? 64 : 40}px`, right: `${right}px`, bottom: '76px', left: '40px' };
+  const h = canvasEl?.getBoundingClientRect().height ?? 800;
+  let top = legend ? 64 : 40;
+  let right = 40;
+  // A short panel only takes the top strip; a tall one takes the right column.
+  if (panel && panel.height < h * 0.3) top = Math.max(top, Math.round(panel.height + 28));
+  else if (panel) right = Math.round(panel.width + 36);
+  return { top: `${top}px`, right: `${right}px`, bottom: '76px', left: '40px' };
 }
 
 export function fitTo(ids: string[], duration = 280): void {
@@ -314,6 +319,7 @@ export function startAnimation(): void {
     return;
   }
   st().setFocus(null);
+  st().setSelection([]);
   st().setAnim({ nodes: chain.nodes, edges: chain.edges, index: 0, playing: true });
 }
 

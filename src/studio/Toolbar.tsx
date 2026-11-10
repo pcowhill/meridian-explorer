@@ -47,6 +47,7 @@ import { useReactFlow } from '@xyflow/react';
 import { useShallow } from 'zustand/react/shallow';
 import { GUIDED_QUESTIONS } from '@/model/data/questions';
 import { useApp } from '@/state/app';
+import { useModel } from '@/state/hooks';
 import { useWorkspace } from '@/state/workspace';
 import { Button, cn, IconButton, inputClass, MenuDivider, MenuItem, MenuLabel, Popover, Tip } from '@/ui/primitives';
 import {
@@ -564,11 +565,12 @@ function FrameReveal() {
 export function AnimationBar() {
   const anim = useStudio((s) => s.anim);
   const nodes = useStudio((s) => s.nodes);
+  const model = useModel();
   if (!anim) return null;
   const name = (id: string) => {
     const n = nodes.find((x) => x.id === id);
     const d = n?.data as Record<string, unknown> | undefined;
-    return (d?.label as string) || (d?.entityId as string)?.split(/[#/:]/).pop() || n?.type || id;
+    return (d?.label as string) || model.entity(d?.entityId as string)?.name || n?.type || id;
   };
   const total = anim.nodes.length - 1;
   const set = useStudio.getState().setAnim;
