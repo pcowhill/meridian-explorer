@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useApp } from '@/state/app';
@@ -67,11 +67,14 @@ describe('Explanation Studio', () => {
     act(() => {
       useApp.getState().sendToStudio({ title: 'One', source: 'inspector', entities: ['db:LedgerEntry'] });
     });
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 450));
-    });
-    const ws = useWorkspace.getState();
-    const board = ws.boards.find((b) => b.id === ws.activeBoardId)!;
-    expect(board.nodes.map((n) => n.data.entityId)).toContain('db:LedgerEntry');
+    // The autosave is debounced; wait for the saved board itself rather than a fixed delay.
+    await waitFor(
+      () => {
+        const ws = useWorkspace.getState();
+        const board = ws.boards.find((b) => b.id === ws.activeBoardId);
+        expect(board?.nodes.map((n) => n.data.entityId)).toContain('db:LedgerEntry');
+      },
+      { timeout: 5000 },
+    );
   });
 });
