@@ -56,15 +56,15 @@ export const EntityNode = memo(function EntityNode({ id, data, selected }: P<Ent
         className={cn('tint group/entity flex h-full w-full flex-col overflow-hidden rounded-lg border-[1.5px] px-2.5 py-2 shadow-panel', hypo && 'hypothetical')}
         style={{ ['--tint' as string]: color, background: style?.fill ? fillCss(style.fill) : 'var(--tint-soft)', borderColor: style?.stroke ? tokenCss(style.stroke) : 'var(--tint-line)', borderStyle: hypo ? 'dashed' : style?.strokeStyle ?? 'solid' } as CSSProperties}
       >
-        <div className="flex min-w-0 items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide" style={{ color }}>
+        <div className="flex min-w-0 shrink-0 items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide" style={{ color }}>
           <KindIcon kind={e.kind} size={12} />
           <span className="truncate">{hypo ? `Hypothetical ${KIND_LABEL[e.kind].toLowerCase()}` : KIND_LABEL[e.kind]}</span>
           {e.confidence && e.confidence !== 'verified' && e.confidence !== 'hypothetical' && <ConfidenceBadge confidence={e.confidence} compact />}
         </div>
-        <div className={cn('mt-0.5 line-clamp-2 font-semibold leading-snug text-fg', removal && 'proposed-removal')} style={{ fontSize: textSize(style, 13.5) }} title={e.name}>
+        <div className={cn('mt-0.5 line-clamp-2 shrink-0 font-semibold leading-snug text-fg', removal && 'proposed-removal')} style={{ fontSize: textSize(style, 13.5) }} title={e.name}>
           {e.name}
         </div>
-        <div className="mt-0.5 line-clamp-2 text-[11.5px] leading-snug text-fg-muted">{model.summaryFor(e, audience)}</div>
+        <div className="mt-0.5 line-clamp-2 min-h-0 text-[11.5px] leading-snug text-fg-muted">{model.summaryFor(e, audience)}</div>
         <EditableText id={id} value={data.caption} field="caption" placeholder="" className="mt-1 text-[11.5px] font-medium italic text-fg">
           {data.caption ? data.caption : null}
         </EditableText>

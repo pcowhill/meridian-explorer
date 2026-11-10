@@ -148,10 +148,10 @@ describe('camera policy', () => {
   });
 
   it('after an expand zooms out just enough to show a container that nearly fits', () => {
-    const next = afterExpand({ x: 0, y: 0, w: 1400, h: 600 }, { x: 0, y: 0, zoom: 1 }, canvas);
+    const next = afterExpand({ x: 0, y: 0, w: 1800, h: 600 }, { x: 0, y: 0, zoom: 1 }, canvas);
     expect(next.zoom).toBeLessThan(READABLE_ZOOM);
     expect(next.zoom).toBeGreaterThan(EXPAND_FLOOR);
-    expect(1400 * next.zoom).toBeLessThanOrEqual(canvas.width - CHROME.left - CHROME.right);
+    expect(1800 * next.zoom).toBeLessThanOrEqual(canvas.width - CHROME.left - CHROME.right);
   });
 
   it('frames an arriving selection at a readable zoom, centred on it when the frame is too big', () => {

@@ -529,7 +529,7 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
         attributionPosition="bottom-center"
         aria-label="Architecture map"
       >
-        {width >= 720 && (
+        {width >= 900 && (
           <MiniMap
             className="presenter-hide atlas-minimap"
             pannable
