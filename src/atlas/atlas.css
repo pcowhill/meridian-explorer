@@ -1,0 +1,553 @@
+/* Architecture Atlas — styles scoped under .atlas. Colours come only from design tokens. */
+
+.atlas .react-flow__edgelabel-renderer {
+  z-index: 1000;
+}
+.atlas .react-flow__node {
+  cursor: pointer;
+}
+.atlas .react-flow__node:focus-visible,
+.atlas .atlas-node:focus-visible {
+  outline: none;
+}
+.atlas .react-flow__pane {
+  cursor: grab;
+}
+.atlas .react-flow__pane.dragging {
+  cursor: grabbing;
+}
+
+/* ---- Nodes ------------------------------------------------------------------ */
+
+.atlas-node {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 10px;
+  color: var(--fg);
+  transition:
+    opacity 180ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+  animation: atlas-appear 220ms ease-out backwards;
+}
+@keyframes atlas-appear {
+  from {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.atlas-node:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent) !important;
+}
+
+/* Collapsed card */
+.atlas-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 10px 8px 12px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--tint) 32%, var(--line));
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.atlas-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--tint);
+  opacity: 0.85;
+}
+.atlas-card:hover {
+  border-color: color-mix(in srgb, var(--tint) 65%, var(--line));
+}
+.atlas-card-container {
+  background: color-mix(in srgb, var(--tint) 6%, var(--surface));
+  box-shadow:
+    var(--shadow),
+    3px 3px 0 -1px var(--surface),
+    3px 3px 0 0 color-mix(in srgb, var(--tint) 30%, var(--line));
+}
+.atlas-emphasis {
+  border-color: color-mix(in srgb, var(--tint) 60%, var(--line));
+}
+.atlas-emphasis .atlas-card-title {
+  font-weight: 700;
+}
+.atlas-kind-dot {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--tint);
+}
+.atlas-card-title {
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.atlas-card-summary {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--fg-muted);
+  overflow: hidden;
+}
+.atlas-card-meta {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.atlas-kind-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tint);
+}
+.atlas-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.atlas-card-markers {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: flex;
+  gap: 3px;
+}
+.atlas-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.atlas-marker-hypo {
+  color: var(--k-hypo);
+  border: 1px dashed var(--k-hypo);
+  background: color-mix(in srgb, var(--k-hypo) 10%, var(--surface));
+}
+.atlas-marker-bad {
+  color: var(--bad);
+  border: 1px solid color-mix(in srgb, var(--bad) 50%, transparent);
+  background: color-mix(in srgb, var(--bad) 10%, var(--surface));
+}
+
+/* Far zoom: the name only, scaled so it stays readable. */
+.atlas-far-name {
+  margin: auto 0;
+  text-align: center;
+  font-weight: 700;
+  line-height: 1.15;
+  font-size: min(var(--far-max, 24px), max(13px, calc(12.5px * var(--atlas-inv, 1))));
+  overflow: hidden;
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.atlas-stub-name {
+  font-size: clamp(12.5px, calc(10px * var(--atlas-inv, 1)), 22px);
+}
+
+/* Expanded region */
+.atlas-region {
+  /* Only the header band takes clicks: the body lets clicks through to edges below it and to the canvas. */
+  pointer-events: none;
+  /* Translucent so edges running underneath stay visible (they never cross cards). */
+  border: 1.5px solid color-mix(in srgb, var(--tint) 40%, var(--line));
+  background: color-mix(in srgb, var(--tint) 5%, transparent);
+  border-radius: 14px;
+}
+.atlas-region.atlas-depth-0 {
+  background: color-mix(in srgb, var(--accent) 2.5%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+.atlas-region-header {
+  pointer-events: auto;
+  cursor: pointer;
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 10px 0 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 18%, transparent);
+  border-radius: 14px 14px 0 0;
+  background: color-mix(in srgb, var(--tint) 7%, transparent);
+}
+.atlas-region-title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+.atlas-far-title {
+  font-size: clamp(14px, calc(12px * var(--atlas-inv, 1)), 26px);
+}
+.atlas-region-kind {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--tint);
+  opacity: 0.85;
+}
+@container (max-width: 360px) {
+  .atlas-region-kind {
+    display: none;
+  }
+}
+.atlas-region-empty {
+  position: absolute;
+  inset: 52px 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 12px;
+  color: var(--fg-subtle);
+}
+.atlas-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--fg-muted);
+  border: 1px solid transparent;
+}
+.atlas-toggle:hover {
+  background: color-mix(in srgb, var(--tint) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--tint) 35%, var(--line));
+  color: var(--fg);
+}
+.atlas-more {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  background: var(--surface);
+  border: 1px dashed var(--line-strong);
+  white-space: nowrap;
+}
+.atlas-more:hover {
+  color: var(--fg);
+  border-color: var(--tint);
+}
+
+/* Collapsed root */
+.atlas-root-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow: var(--shadow-lg);
+}
+.atlas-root-card:hover {
+  border-color: var(--accent);
+}
+.atlas-root-icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+.atlas-root-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Focus-mode stub */
+.atlas-stub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--tint) 45%, var(--line-strong));
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--tint);
+  opacity: 0.75;
+}
+.atlas-stub:hover {
+  opacity: 1;
+}
+
+/* Effects */
+.atlas-dim {
+  opacity: 0.18;
+}
+.atlas-region.atlas-dim {
+  opacity: 0.45;
+}
+.atlas-fx-focus {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent),
+    var(--shadow);
+}
+.atlas-fx-lens {
+  box-shadow:
+    0 0 0 2.5px var(--k-feature),
+    0 0 18px color-mix(in srgb, var(--k-feature) 40%, transparent);
+}
+.atlas-fx-lens-in {
+  border-color: color-mix(in srgb, var(--k-feature) 60%, var(--line)) !important;
+}
+.atlas-selected {
+  box-shadow:
+    0 0 0 2.5px var(--accent),
+    0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent),
+    var(--shadow) !important;
+}
+.atlas-region.atlas-selected {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 6px color-mix(in srgb, var(--accent) 12%, transparent) !important;
+}
+
+/* ---- Edges ------------------------------------------------------------------ */
+
+.atlas-flow {
+  animation: dash-flow 1.4s linear infinite;
+}
+.atlas-edge-label {
+  position: absolute;
+  /* Display only: the label sits on the path's midpoint, so clicks fall through to the edge's hit path. */
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 260px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--edge) 45%, var(--line));
+  box-shadow: var(--shadow);
+}
+.atlas-edge-label.is-active {
+  border-color: var(--edge);
+}
+.atlas-edge-label.is-hypo {
+  border-style: dashed;
+  color: var(--k-hypo);
+}
+.atlas-edge-swatch {
+  display: inline-block;
+  width: 10px;
+  border-top: 2px solid var(--edge);
+  flex-shrink: 0;
+}
+.atlas-edge-count {
+  font-size: 9.5px;
+  color: var(--fg-subtle);
+}
+
+/* ---- Chrome ------------------------------------------------------------------- */
+
+.atlas-chrome-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 9px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  color: var(--fg-muted);
+}
+.atlas-chrome-btn:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+.atlas-chrome-btn.text-hypo {
+  color: var(--k-hypo);
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--k-hypo) 55%, var(--line));
+}
+.atlas-crumbs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.atlas-crumbs.is-focused {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+}
+.atlas-crumb {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 220px;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+.atlas-crumb:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.atlas-crumb.is-current {
+  color: var(--accent);
+  font-weight: 650;
+}
+.atlas-crumb.is-inner {
+  color: var(--fg);
+}
+.atlas-banner {
+  display: flex;
+  max-width: 560px;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 3px 4px 3px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.atlas-banner.is-feature {
+  border-color: color-mix(in srgb, var(--k-feature) 50%, var(--line));
+}
+.atlas-banner b {
+  color: var(--fg);
+}
+.atlas-seltool {
+  pointer-events: auto;
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 1px;
+  height: 36px;
+  padding: 0 3px 0 10px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  animation: atlas-fade 0.15s ease-out both;
+}
+@keyframes atlas-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.atlas-seltool-name {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 220px;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.atlas-seltool-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--line);
+}
+.atlas-minimap {
+  width: 168px !important;
+}
+.atlas-minimap svg {
+  width: 168px;
+}
+
+.atlas-corner-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}

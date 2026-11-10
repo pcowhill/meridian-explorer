@@ -1,0 +1,21 @@
+/* Scenario Theater — the few styles Tailwind utilities cannot express. */
+
+@keyframes th-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--k-db) 60%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.th-pulse {
+  animation: th-pulse 1.1s ease-out infinite;
+}
+
+/* The scrubber ticks scale with the number of steps. */
+.th-scrubber {
+  touch-action: none;
+}

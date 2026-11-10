@@ -1,0 +1,948 @@
+import type { Scenario, ScenarioStep } from '../../types';
+import { IDS, NOW, baseState } from '../fixtures';
+import { BE, CU, SH, src } from '../platform/helpers';
+
+/**
+ * "What happens when someone signs in?" — Avery signs in from the customer
+ * app's Login page. Every branch of `POST /api/auth/login` is a variant.
+ */
+
+const AUTHR = `${BE}/routes/auth.ts`;
+const CSRF = `${BE}/auth/csrf.ts`;
+const RATE = `${BE}/abuse/rate-limit.ts`;
+const GUARDS = `${BE}/auth/guards.ts`;
+const LOCKOUT = `${BE}/auth/lockout.ts`;
+const PASSWORD = `${BE}/auth/password.ts`;
+const SESSIONS = `${BE}/auth/sessions.ts`;
+const TOKENS = `${BE}/auth/tokens.ts`;
+const AUDIT = `${BE}/auth/audit.ts`;
+const COOKIES = `${BE}/auth/cookies.ts`;
+const LOGIN_PAGE = `${CU}/pages/Login.tsx`;
+const CU_AUTH = `${CU}/lib/auth.ts`;
+const CU_PROVIDER = `${CU}/lib/AuthProvider.tsx`;
+const AUTH_TEST = `${BE}/routes/auth.test.ts`;
+
+// Participants
+const ACTOR = 'role:customer';
+const PAGE = 'cu:pages/Login';
+const CLIENT = 'cu:lib/auth';
+const ROUTE = 'be:routes/auth';
+const LOCK = 'be:auth/lockout';
+const VERIFY = 'be:auth/password#verifyPassword';
+const SESS = 'be:auth/sessions';
+const USER = 'db:User';
+const SESSION = 'db:Session';
+const LOGIN_EVENT = 'db:LoginEvent';
+
+// Variants
+const OK = 'success';
+const WRONG = 'wrong-password';
+const LOCKED = 'locked-out';
+const UNKNOWN = 'unknown-email';
+const DISABLED = 'disabled-account';
+const LIMITED = 'rate-limited';
+const PAST_LIMIT = [OK, WRONG, LOCKED, UNKNOWN, DISABLED];
+const KNOWN_ACTIVE = [OK, WRONG, LOCKED];
+
+// Example values, consistent from step to step
+const EMAIL = 'avery.customer@example.com';
+const IP = '127.0.0.1';
+const UA = 'Mozilla/5.0 (demo browser)';
+const LOCK_UNTIL = '2026-10-01T15:15:00.000Z';
+const EXPIRES = '2026-10-01T23:00:00.000Z';
+const RETRY_AT = '2026-10-01T15:01:00.000Z';
+const RELOAD_AT = '2026-10-01T15:20:00.000Z';
+const RELOAD_EXPIRES = '2026-10-01T23:20:00.000Z';
+const RAW_TOKEN = '3f9a…e21c (64 hex characters)';
+const TOKEN_HASH = 'c1d4…77b0 (SHA-256 of the token)';
+const CSRF_TOKEN = '8be2…04af';
+const SESSION_USER = { id: IDS.avery, email: EMAIL, displayName: 'Avery Customer', role: 'customer' };
+
+const REQUEST_HEADERS = {
+  'Content-Type': 'application/json',
+  Cookie: `mer_csrf=${CSRF_TOKEN}`,
+  'x-meridian-csrf': CSRF_TOKEN,
+};
+
+const steps: ScenarioStep[] = [
+  // ---- Variant set-up (state that exists before the attempt) -----------------
+  {
+    id: 'setup-prior-failures',
+    kind: 'state',
+    title: 'Before this attempt: four wrong passwords already recorded',
+    from: USER,
+    to: USER,
+    label: 'failedLoginAttempts = 4',
+    narrative:
+      'Four earlier attempts with a wrong password each ran the wrong-password branch: `User.failedLoginAttempts` now stands at 4, `lockedUntil` is still null, and four `LoginEvent` rows with reason `invalid_credentials` exist. One more failure reaches `AUTH.maxFailedAttempts` (5).',
+    audience: { executive: 'Someone has already guessed Avery\'s password wrongly four times.', 'end-user': 'The wrong password has already been entered four times.' },
+    detail: 1,
+    variants: [LOCKED],
+    payload: { title: 'User row before the attempt', format: 'row', data: { id: IDS.avery, email: EMAIL, failedLoginAttempts: 4, lockedUntil: null }, highlight: ['failedLoginAttempts'] },
+    effects: [
+      { op: 'update', table: 'User', id: IDS.avery, set: { failedLoginAttempts: 4 } },
+      ...[1, 2, 3, 4].map((n) => ({
+        op: 'insert' as const,
+        table: 'LoginEvent',
+        row: { id: `lev_prior_${n}`, userId: IDS.avery, email: EMAIL, success: false, reason: 'invalid_credentials', ip: IP, userAgent: UA, createdAt: `2026-10-01T14:5${4 + n}:00.000Z` },
+      })),
+    ],
+    sources: [src(LOCKOUT, 34, 44, 'AUTH.maxFailedAttempts', 'Threshold'), src(`${SH}/auth.ts`, 84, 87, 'maxFailedAttempts: 5')],
+  },
+  {
+    id: 'setup-disabled',
+    kind: 'state',
+    title: 'Before this attempt: the account is disabled',
+    from: USER,
+    to: USER,
+    label: "status = 'disabled'",
+    narrative:
+      'Avery\'s `User.status` is `disabled`. No endpoint at this commit sets that value — the column allows `active | disabled` and the test suite flips it with a direct `prisma.user.update` — so treat this as a row changed in the database.',
+    audience: { executive: 'The bank has switched this customer\'s access off.', dba: '`User.status` is a free-text column with the convention `active | disabled`; here it was set to `disabled` outside the API.' },
+    detail: 1,
+    variants: [DISABLED],
+    payload: { title: 'User row before the attempt', format: 'row', data: { id: IDS.avery, email: EMAIL, status: 'disabled' }, highlight: ['status'] },
+    effects: [{ op: 'update', table: 'User', id: IDS.avery, set: { status: 'disabled' } }],
+    sources: [src(AUTH_TEST, 77, 89, "data: { status: 'disabled' }", 'How the test disables the account'), src('apps/backend/prisma/schema.prisma', 27, 27, 'active | disabled')],
+    confidence: 'inferred',
+  },
+
+  // ---- Shared opening ---------------------------------------------------------
+  {
+    id: 'open-login',
+    kind: 'ui',
+    title: 'Enter email and password',
+    from: ACTOR,
+    to: PAGE,
+    label: 'fills in the sign-in form',
+    narrative:
+      'Avery opens `/login` in the customer app. The page shows the form only after the auth provider has finished its start-up check (`GET /api/auth/me`, which answered 401 and — as a side effect of being a safe request — left a `mer_csrf` cookie in the browser). Avery types an email and password and presses Continue.',
+    audience: {
+      executive: 'A customer types their email and password on the bank\'s sign-in page.',
+      'end-user': 'You type your email and password and press Continue.',
+    },
+    detail: 1,
+    payload: { title: 'Form state', format: 'json', data: { email: EMAIL, password: '••••••••' } },
+    sources: [src(LOGIN_PAGE, 52, 61, 'export function Login()'), src(LOGIN_PAGE, 154, 197, 'onSubmit={handleSubmit}')],
+  },
+  {
+    id: 'submit-form',
+    kind: 'client',
+    title: 'The page calls login() through the auth context',
+    from: PAGE,
+    to: CLIENT,
+    label: 'login(email.trim(), password)',
+    narrative:
+      '`handleSubmit` prevents the browser submit, clears any previous error, sets `submitting` and awaits `login(email.trim(), password)` from `useAuth()`. The provider\'s `login` simply forwards to `authApi.login` in `lib/auth.ts` and will cache the returned user on success.',
+    detail: 3,
+    payload: { title: 'Arguments', format: 'args', data: { email: EMAIL, password: '••••••••' } },
+    sources: [src(LOGIN_PAGE, 68, 80, 'async function handleSubmit'), src(CU_PROVIDER, 36, 40, 'authApi.login(email, password)')],
+  },
+  {
+    id: 'post-login',
+    kind: 'request',
+    title: 'POST /api/auth/login',
+    from: CLIENT,
+    to: ROUTE,
+    label: 'POST /api/auth/login',
+    narrative:
+      '`jsonInit` builds the fetch: `credentials: \'include\'` so cookies travel, a JSON content type because there is a body, and the `x-meridian-csrf` header copied from the `mer_csrf` cookie. The customer app sends no `x-meridian-surface` header, so the backend will treat the request as the customer surface.',
+    audience: {
+      executive: 'The website sends the email and password to the bank\'s server over an encrypted connection.',
+      'end-user': 'Your details are sent to the bank\'s server.',
+      systems: 'JSON POST with credentials. In production it is same-origin (`https://banking.cowhill.dev/api/auth/login`) via the reverse proxy; in development it is a credentialed CORS request to `localhost:3000`.',
+    },
+    detail: 2,
+    payload: { title: 'Request', format: 'http-request', line: 'POST /api/auth/login', headers: REQUEST_HEADERS, data: { email: EMAIL, password: '••••••••' }, typeRef: 'sh:auth#LoginRequest' },
+    sources: [src(CU_AUTH, 64, 69, 'export async function login'), src(CU_AUTH, 35, 42, 'const jsonInit')],
+  },
+  {
+    id: 'csrf-hook',
+    kind: 'guard',
+    title: 'CSRF hook: login is exempt',
+    from: ROUTE,
+    to: ROUTE,
+    label: 'csrfHook → exempt path',
+    narrative:
+      'The global `onRequest` hook runs first. POST is an unsafe method, but `/api/auth/login` is on the exemption list — the request runs before any session exists — so the header is not compared. Had the browser held no `mer_csrf` cookie, the hook would seed one on this response.',
+    detail: 4,
+    sources: [src(CSRF, 95, 100, 'EXEMPT_PATHS.has(pathOf(req))'), src(CSRF, 30, 35, "'/api/auth/login'")],
+  },
+  {
+    id: 'rate-limit',
+    kind: 'decision',
+    title: 'Rate limit: is this client over its sign-in budget?',
+    from: ROUTE,
+    to: ROUTE,
+    label: "mutationValveHook, rateLimit('login')",
+    narrative:
+      'Two limiter checks run before any database or bcrypt work: the global mutation valve (200 state-changing requests per 5 minutes per IP) and the route\'s own `login` bucket (20 attempts per 5 minutes per IP — no user is known yet, so the key is `ip:<address>`). Both are no-ops unless the server runs in public-demo mode or with `RATE_LIMITS=true`.',
+    audience: {
+      executive: 'On the shared public demo, the server first checks that this visitor is not hammering the sign-in page.',
+      systems: 'In-memory fixed-window counters keyed by client IP (`req.ip`, which honours X-Forwarded-For from the loopback proxy). Disabled in local development.',
+    },
+    detail: 3,
+    decision: {
+      question: 'Has this client used up the `login` bucket (20 attempts in 5 minutes)?',
+      options: [
+        { label: 'No — or limits are off (local development)', variant: OK, description: 'The handler runs.' },
+        { label: 'Yes — public-demo mode, 21st attempt', variant: LIMITED, description: '429 before any lookup or hashing.' },
+      ],
+    },
+    payload: { title: 'Limiter decision', format: 'return', data: { bucket: 'login', key: `ip:${IP}`, rule: { max: 20, windowMs: 300000 } }, typeRef: 'sh:public-demo#PUBLIC_DEMO_RATE_LIMITS' },
+    sources: [src(AUTHR, 76, 78, "rateLimit('login')"), src(RATE, 158, 168, 'limiterFor(bucket).hit(key)'), src(RATE, 178, 183, "limiterFor('mutations')")],
+  },
+
+  // ---- rate-limited -----------------------------------------------------------
+  {
+    id: 'limited-429',
+    kind: 'response',
+    title: '429 Too Many Requests',
+    from: ROUTE,
+    to: CLIENT,
+    label: '429 rate_limited',
+    narrative:
+      '`rateLimitedResponse` ends the request with status 429, a `Retry-After` header holding the seconds until the window resets, and the standard error body. The handler never ran: no user lookup, no bcrypt, no LoginEvent row.',
+    audience: { executive: 'The server refuses for a few minutes. Nothing about the account changes.' },
+    detail: 1,
+    variants: [LIMITED],
+    payload: {
+      title: 'Response',
+      format: 'http-response',
+      line: '429 Too Many Requests',
+      headers: { 'retry-after': '212' },
+      data: { error: 'Too many requests for this shared demo — please slow down and try again in a moment.', code: 'rate_limited' },
+      typeRef: 'sh:auth#ApiErrorResponse',
+      highlight: ['code'],
+    },
+    sources: [src(RATE, 142, 150, "code: 'rate_limited'"), src(`${BE}/routes/public-demo.test.ts`, 215, 227, "toBe('rate_limited')", 'Pinned by test')],
+  },
+  {
+    id: 'limited-message',
+    kind: 'ui',
+    title: 'The page asks the visitor to wait',
+    from: PAGE,
+    to: ACTOR,
+    label: '"Too many sign-in attempts…"',
+    narrative:
+      '`login()` returns `{ ok: false, code: \'rate_limited\' }`; the page maps the code to "Too many sign-in attempts from your connection on this shared demo. Please wait a minute and try again." and re-enables the form.',
+    audience: { 'end-user': 'You see a message asking you to wait a minute before trying again.' },
+    detail: 1,
+    variants: [LIMITED],
+    sources: [src(LOGIN_PAGE, 43, 44, "case 'rate_limited'")],
+  },
+
+  // ---- handler: validation + lookup -------------------------------------------
+  {
+    id: 'validate-input',
+    kind: 'validate',
+    title: 'Validate and normalise the input',
+    from: ROUTE,
+    to: ROUTE,
+    label: 'email + password present, bounded',
+    narrative:
+      'The handler requires both fields to be non-empty strings, trims and lower-cases the email, and rejects an email over 254 characters or a password over 200 with 400 `invalid_request` — cheaply, without a lookup or a bcrypt comparison. It then captures the request context (IP, user-agent; the constant `public-demo` in public-demo mode) and the current real time.',
+    detail: 4,
+    variants: PAST_LIMIT,
+    payload: { title: 'Normalised input + context', format: 'args', data: { email: EMAIL, password: '••••••••', ctx: { ip: IP, userAgent: UA }, now: NOW } },
+    sources: [src(AUTHR, 79, 97, 'normalizeEmail(body.email)'), src(GUARDS, 35, 41, 'export function requestContext')],
+  },
+  {
+    id: 'find-user',
+    kind: 'db-read',
+    title: 'Look the user up by email',
+    from: ROUTE,
+    to: USER,
+    label: 'user.findUnique({ email })',
+    narrative: 'One read on the unique `email` column. The row carries the bcrypt hash, the status and the two lockout columns the rest of the handler works from.',
+    audience: { dba: '`SELECT … FROM User WHERE email = ?` on the unique index. No join.' },
+    detail: 3,
+    variants: PAST_LIMIT,
+    payload: { title: 'Query', format: 'args', data: { where: { email: EMAIL } } },
+    sources: [src(AUTHR, 98, 98, 'prisma.user.findUnique({ where: { email } })')],
+  },
+  {
+    id: 'user-decision',
+    kind: 'decision',
+    title: 'Is there an active user with this email?',
+    from: ROUTE,
+    to: ROUTE,
+    label: 'user? status active?',
+    narrative:
+      'Two checks in order. No row: the unknown-email branch. A row whose `status` is not `active`: refused before the password is even examined.',
+    detail: 3,
+    variants: PAST_LIMIT,
+    decision: {
+      question: 'Did the lookup find a user, and is it active?',
+      options: [
+        { label: 'Found and active', variant: OK },
+        { label: 'No user with this email', variant: UNKNOWN, description: 'Generic 401, after a decoy bcrypt comparison.' },
+        { label: 'Found but disabled', variant: DISABLED, description: '403 account_disabled.' },
+      ],
+    },
+    sources: [src(AUTHR, 100, 102, 'if (!user)'), src(AUTHR, 114, 114, "user.status !== 'active'")],
+  },
+
+  // ---- unknown-email ------------------------------------------------------------
+  {
+    id: 'decoy-compare',
+    kind: 'call',
+    title: 'Compare against a decoy hash anyway',
+    from: ROUTE,
+    to: VERIFY,
+    label: 'verifyPassword(password, DECOY_PASSWORD_HASH)',
+    narrative:
+      'There is nothing to verify, but the handler still runs a full bcrypt comparison against a fixed throwaway hash. That keeps the response time for "no such user" close to "wrong password", so timing does not reveal which emails exist.',
+    audience: { executive: 'The server behaves the same whether or not the email exists, so an attacker cannot use it to discover customers.' },
+    detail: 1,
+    variants: [UNKNOWN],
+    payload: { title: 'Return', format: 'return', data: false },
+    sources: [src(AUTHR, 100, 103, 'verifyPassword(password, DECOY_PASSWORD_HASH)'), src(PASSWORD, 32, 41, 'export const DECOY_PASSWORD_HASH')],
+  },
+  {
+    id: 'unknown-login-event',
+    kind: 'db-write',
+    title: 'Record the attempt with no user',
+    from: ROUTE,
+    to: LOGIN_EVENT,
+    label: 'insert LoginEvent (userId null)',
+    narrative: '`recordLoginEvent` inserts a row with `userId: null`, the attempted email, `success: false` and reason `invalid_credentials`. Because it has no user id it never appears in anyone\'s login history.',
+    audience: { dba: 'One insert into `LoginEvent`; `userId` is a nullable foreign key and is null here.' },
+    detail: 1,
+    variants: [UNKNOWN],
+    payload: { title: 'LoginEvent row', format: 'row', data: { userId: null, email: 'nobody@example.com', success: false, reason: 'invalid_credentials', ip: IP, userAgent: UA }, highlight: ['userId', 'reason'] },
+    effects: [{ op: 'insert', table: 'LoginEvent', row: { id: 'lev_1', userId: null, email: 'nobody@example.com', success: false, reason: 'invalid_credentials', ip: IP, userAgent: UA, createdAt: NOW } }],
+    sources: [src(AUTHR, 104, 110, "reason: 'invalid_credentials'"), src(AUDIT, 22, 42, 'prisma.loginEvent.create')],
+  },
+  {
+    id: 'unknown-401',
+    kind: 'response',
+    title: '401 — the same generic answer as a wrong password',
+    from: ROUTE,
+    to: CLIENT,
+    label: '401 invalid_credentials',
+    narrative: 'The body is identical to the wrong-password response: "Invalid email or password." with code `invalid_credentials`. No cookie is set.',
+    audience: { executive: 'Sign-in is refused with a message that does not say whether the email exists.' },
+    detail: 1,
+    variants: [UNKNOWN],
+    payload: { title: 'Response', format: 'http-response', line: '401 Unauthorized', data: { error: 'Invalid email or password.', code: 'invalid_credentials' }, typeRef: 'sh:auth#ApiErrorResponse', highlight: ['code'] },
+    sources: [src(AUTHR, 111, 111, "code: 'invalid_credentials'"), src(AUTH_TEST, 62, 70, 'no user enumeration', 'Pinned by test')],
+  },
+  {
+    id: 'unknown-message',
+    kind: 'ui',
+    title: 'The form shows "do not match"',
+    from: PAGE,
+    to: ACTOR,
+    label: '"That email and password do not match."',
+    narrative: 'The client returns `{ ok: false, code: \'invalid_credentials\' }`; the page shows "That email and password do not match. Double-check and try again." and stays on the form.',
+    detail: 2,
+    variants: [UNKNOWN],
+    sources: [src(LOGIN_PAGE, 33, 36, "case 'invalid_credentials'"), src(CU_AUTH, 77, 82, "code: err?.code ?? 'unknown_error'")],
+  },
+
+  // ---- disabled-account -----------------------------------------------------------
+  {
+    id: 'disabled-login-event',
+    kind: 'db-write',
+    title: 'Record the refused attempt',
+    from: ROUTE,
+    to: LOGIN_EVENT,
+    label: 'insert LoginEvent (account_disabled)',
+    narrative: 'The attempt is recorded against the user with reason `account_disabled`. The password is never compared and the lockout counters are not touched.',
+    detail: 1,
+    variants: [DISABLED],
+    payload: { title: 'LoginEvent row', format: 'row', data: { userId: IDS.avery, email: EMAIL, success: false, reason: 'account_disabled', ip: IP, userAgent: UA }, highlight: ['reason'] },
+    effects: [{ op: 'insert', table: 'LoginEvent', row: { id: 'lev_1', userId: IDS.avery, email: EMAIL, success: false, reason: 'account_disabled', ip: IP, userAgent: UA, createdAt: NOW } }],
+    sources: [src(AUTHR, 114, 121, "reason: 'account_disabled'")],
+  },
+  {
+    id: 'disabled-403',
+    kind: 'response',
+    title: '403 — account disabled',
+    from: ROUTE,
+    to: CLIENT,
+    label: '403 account_disabled',
+    narrative: 'Status 403 with code `account_disabled`. Unlike the credential failures this response does confirm the account exists.',
+    audience: { executive: 'Sign-in is refused because the account has been switched off.' },
+    detail: 1,
+    variants: [DISABLED],
+    payload: { title: 'Response', format: 'http-response', line: '403 Forbidden', data: { error: 'This account is disabled.', code: 'account_disabled' }, typeRef: 'sh:auth#ApiErrorResponse', highlight: ['code'] },
+    sources: [src(AUTHR, 122, 124, "code: 'account_disabled'"), src(AUTH_TEST, 77, 89, "toBe('account_disabled')", 'Pinned by test')],
+  },
+  {
+    id: 'disabled-message',
+    kind: 'ui',
+    title: 'The form explains the account is disabled',
+    from: PAGE,
+    to: ACTOR,
+    label: '"This account has been disabled."',
+    narrative: 'The page shows "This account has been disabled. Contact support (simulated) for help."',
+    detail: 2,
+    variants: [DISABLED],
+    sources: [src(LOGIN_PAGE, 39, 40, "case 'account_disabled'")],
+  },
+
+  // ---- lockout check + password -----------------------------------------------------
+  {
+    id: 'lockout-check',
+    kind: 'decision',
+    title: 'Is the account locked right now?',
+    from: ROUTE,
+    to: LOCK,
+    label: 'normalizeForAttempt(state, now) → isLocked(state, now)',
+    narrative:
+      'The handler builds the lockout state from the row (`failedLoginAttempts`, `lockedUntil`), lets `normalizeForAttempt` wipe an already-expired lock, then asks `isLocked`. A live lock ends the request here with 423. `lockoutExempt(email)` — true only in public-demo mode for a seeded showcase account — skips this check.',
+    audience: {
+      executive: 'The server checks whether the account is temporarily locked because of earlier wrong guesses.',
+      dba: 'No query: this works on the `failedLoginAttempts` and `lockedUntil` values already read with the user row.',
+    },
+    detail: 3,
+    variants: KNOWN_ACTIVE,
+    decision: {
+      question: 'Is `lockedUntil` still in the future?',
+      options: [
+        { label: 'No — not locked', variant: OK, description: 'Go on to check the password.' },
+        { label: 'Yes — locked', variant: LOCKED, description: 'Happens on the second attempt of the locked-out story: 423 without checking the password.' },
+      ],
+    },
+    payload: { title: 'Lockout check', format: 'return', data: { lockedUntil: null, isLocked: false }, typeRef: 'be:auth/lockout#LockoutState' },
+    sources: [src(AUTHR, 127, 134, 'normalizeForAttempt('), src(LOCKOUT, 17, 32, 'export function normalizeForAttempt'), src(AUTHR, 51, 67, 'function lockoutExempt', 'Public-demo exemption')],
+  },
+  {
+    id: 'verify-password',
+    kind: 'call',
+    title: 'Verify the password with bcrypt',
+    from: ROUTE,
+    to: VERIFY,
+    label: 'verifyPassword(password, user.passwordHash)',
+    narrative:
+      '`bcrypt.compare` hashes the submitted password with the salt and cost factor (10) embedded in the stored hash and compares the result. The stored value is never decrypted — it cannot be. A user with no hash is an ordinary failure.',
+    audience: {
+      executive: 'The server checks the password against a scrambled copy; the real password is never stored.',
+      'end-user': 'The bank checks your password without ever storing it in readable form.',
+    },
+    detail: 1,
+    variants: KNOWN_ACTIVE,
+    payload: { title: 'Arguments', format: 'args', data: { plain: '••••••••', hash: '$2a$10$… (bcrypt, cost 10)' } },
+    sources: [src(AUTHR, 148, 148, 'verifyPassword(password, user.passwordHash)'), src(PASSWORD, 24, 30, 'bcrypt.compare(plain, hash)')],
+  },
+  {
+    id: 'password-decision',
+    kind: 'decision',
+    title: 'Does the password match?',
+    from: ROUTE,
+    to: ROUTE,
+    label: 'passwordOk?',
+    narrative: 'The fork every sign-in turns on. A match opens a session; a mismatch is counted against the account.',
+    detail: 2,
+    variants: KNOWN_ACTIVE,
+    decision: {
+      question: 'Did `verifyPassword` return true?',
+      options: [
+        { label: 'Yes', variant: OK, description: 'Reset counters, open a session, set the cookie.' },
+        { label: 'No — fewer than five failures so far', variant: WRONG, description: 'Count the failure; 401.' },
+        { label: 'No — and this is the fifth failure', variant: LOCKED, description: 'Lock the account for 15 minutes; 423.' },
+      ],
+    },
+    sources: [src(AUTHR, 148, 149, 'if (!passwordOk)')],
+  },
+
+  // ---- wrong-password -----------------------------------------------------------------
+  {
+    id: 'register-failure',
+    kind: 'call',
+    title: 'Count the failure',
+    from: ROUTE,
+    to: LOCK,
+    label: 'registerFailure(state, now)',
+    narrative: 'The pure policy function returns the next state: the counter goes from 0 to 1, which is below the threshold of 5, so `lockedUntil` stays null.',
+    detail: 4,
+    variants: [WRONG],
+    payload: { title: 'Return', format: 'return', data: { failedLoginAttempts: 1, lockedUntil: null }, typeRef: 'be:auth/lockout#LockoutState', highlight: ['failedLoginAttempts'] },
+    sources: [src(AUTHR, 149, 153, 'registerFailure(state, now)'), src(LOCKOUT, 34, 44, 'export function registerFailure')],
+  },
+  {
+    id: 'persist-failure',
+    kind: 'db-write',
+    title: 'Save the new failure count',
+    from: ROUTE,
+    to: USER,
+    label: 'user.update({ failedLoginAttempts: 1 })',
+    narrative: 'The counter is written back to the user row so it survives across requests and server restarts.',
+    audience: { dba: '`UPDATE User SET failedLoginAttempts = 1, lockedUntil = NULL WHERE id = ?`. Not wrapped in a transaction with the LoginEvent insert that follows.' },
+    detail: 1,
+    variants: [WRONG],
+    payload: { title: 'Update', format: 'row', data: { id: IDS.avery, failedLoginAttempts: 1, lockedUntil: null }, highlight: ['failedLoginAttempts'] },
+    effects: [{ op: 'update', table: 'User', id: IDS.avery, set: { failedLoginAttempts: 1, lockedUntil: null } }],
+    sources: [src(AUTHR, 154, 157, 'prisma.user.update')],
+  },
+  {
+    id: 'failure-login-event',
+    kind: 'db-write',
+    title: 'Record the failed attempt',
+    from: ROUTE,
+    to: LOGIN_EVENT,
+    label: 'insert LoginEvent (invalid_credentials)',
+    narrative: 'One login-history row: `success: false`, reason `invalid_credentials`. Avery will see it under recent sign-in activity after next signing in.',
+    audience: { executive: 'The failed attempt is logged so the customer can later see that someone tried.' },
+    detail: 3,
+    variants: [WRONG],
+    payload: { title: 'LoginEvent row', format: 'row', data: { userId: IDS.avery, email: EMAIL, success: false, reason: 'invalid_credentials', ip: IP, userAgent: UA }, highlight: ['success', 'reason'] },
+    effects: [{ op: 'insert', table: 'LoginEvent', row: { id: 'lev_1', userId: IDS.avery, email: EMAIL, success: false, reason: 'invalid_credentials', ip: IP, userAgent: UA, createdAt: NOW } }],
+    sources: [src(AUTHR, 158, 165, "justLocked ? 'account_locked' : 'invalid_credentials'")],
+  },
+  {
+    id: 'wrong-401',
+    kind: 'response',
+    title: '401 — invalid credentials',
+    from: ROUTE,
+    to: CLIENT,
+    label: '401 invalid_credentials',
+    narrative: '"Invalid email or password." with code `invalid_credentials`. No session cookie is set.',
+    audience: { executive: 'Sign-in is refused. Nothing else changes except the count of failed attempts.' },
+    detail: 1,
+    variants: [WRONG],
+    payload: { title: 'Response', format: 'http-response', line: '401 Unauthorized', data: { error: 'Invalid email or password.', code: 'invalid_credentials' }, typeRef: 'sh:auth#ApiErrorResponse', highlight: ['code'] },
+    sources: [src(AUTHR, 181, 181, "code: 'invalid_credentials'"), src(AUTH_TEST, 51, 60, 'rejects a wrong password with 401 and no cookie', 'Pinned by test')],
+  },
+  {
+    id: 'wrong-message',
+    kind: 'ui',
+    title: 'The form shows "do not match"',
+    from: PAGE,
+    to: ACTOR,
+    label: '"That email and password do not match."',
+    narrative: 'The page maps `invalid_credentials` to "That email and password do not match. Double-check and try again.", clears `submitting` and leaves the form filled in for another try.',
+    audience: { 'end-user': 'You see that the email and password do not match and can try again.' },
+    detail: 2,
+    variants: [WRONG],
+    sources: [src(LOGIN_PAGE, 73, 80, 'setError(messageForCode(result.code, result.message))'), src(LOGIN_PAGE, 33, 36, "case 'invalid_credentials'")],
+  },
+
+  // ---- locked-out: the fifth failure -----------------------------------------------------
+  {
+    id: 'register-failure-lock',
+    kind: 'call',
+    title: 'Count the fifth failure — the threshold',
+    from: ROUTE,
+    to: LOCK,
+    label: 'registerFailure(state, now)',
+    narrative: 'The counter goes from 4 to 5, which meets `AUTH.maxFailedAttempts`, so the function sets `lockedUntil` to now + `AUTH.lockoutDurationMinutes` (15 minutes).',
+    detail: 3,
+    variants: [LOCKED],
+    payload: { title: 'Return', format: 'return', data: { failedLoginAttempts: 5, lockedUntil: LOCK_UNTIL }, typeRef: 'be:auth/lockout#LockoutState', highlight: ['lockedUntil'] },
+    sources: [src(LOCKOUT, 34, 44, 'const shouldLock'), src(AUTHR, 149, 153, 'registerFailure(state, now)')],
+  },
+  {
+    id: 'persist-lock',
+    kind: 'db-write',
+    title: 'Lock the account',
+    from: ROUTE,
+    to: USER,
+    label: 'user.update({ failedLoginAttempts: 5, lockedUntil })',
+    narrative: 'The lock is two column values on the user row: the count and the time the lock ends. Nothing else marks an account as locked.',
+    audience: {
+      executive: 'After five wrong guesses in a row the account is locked for fifteen minutes.',
+      dba: '`UPDATE User SET failedLoginAttempts = 5, lockedUntil = <now + 15 min> WHERE id = ?`. The operations dashboard counts locked accounts with `lockedUntil > now`.',
+    },
+    detail: 1,
+    variants: [LOCKED],
+    payload: { title: 'Update', format: 'row', data: { id: IDS.avery, failedLoginAttempts: 5, lockedUntil: LOCK_UNTIL }, highlight: ['lockedUntil'] },
+    effects: [{ op: 'update', table: 'User', id: IDS.avery, set: { failedLoginAttempts: 5, lockedUntil: LOCK_UNTIL } }],
+    sources: [src(AUTHR, 154, 157, 'lockedUntil: next.lockedUntil')],
+  },
+  {
+    id: 'lock-login-event',
+    kind: 'db-write',
+    title: 'Record the attempt that caused the lock',
+    from: ROUTE,
+    to: LOGIN_EVENT,
+    label: 'insert LoginEvent (account_locked)',
+    narrative: 'Because `isLocked(next, now)` is now true, this attempt\'s reason is `account_locked` rather than `invalid_credentials`.',
+    detail: 3,
+    variants: [LOCKED],
+    payload: { title: 'LoginEvent row', format: 'row', data: { userId: IDS.avery, email: EMAIL, success: false, reason: 'account_locked', ip: IP, userAgent: UA }, highlight: ['reason'] },
+    effects: [{ op: 'insert', table: 'LoginEvent', row: { id: 'lev_5', userId: IDS.avery, email: EMAIL, success: false, reason: 'account_locked', ip: IP, userAgent: UA, createdAt: NOW } }],
+    sources: [src(AUTHR, 158, 165, "justLocked ? 'account_locked' : 'invalid_credentials'")],
+  },
+  {
+    id: 'lock-audit',
+    kind: 'db-write',
+    title: 'Write the lock to the audit log',
+    from: ROUTE,
+    to: ROUTE,
+    label: "writeAudit({ action: 'account_locked' })",
+    narrative: 'A lock is a security-significant transition, so `writeAudit` inserts an `AuditLog` row: actor and entity are the user, the reason is "Too many failed login attempts" and the metadata records the count.',
+    audience: { executive: 'The lock-out is written to the bank\'s permanent audit trail.', dba: 'One `AuditLog` insert; `metadata` is the JSON string `{"failedLoginAttempts":5}`.' },
+    detail: 3,
+    variants: [LOCKED],
+    payload: { title: 'AuditLog row', format: 'row', data: { actorId: IDS.avery, actorRole: 'customer', action: 'account_locked', entity: 'user', entityId: IDS.avery, reason: 'Too many failed login attempts', metadata: '{"failedLoginAttempts":5}' }, highlight: ['action'] },
+    effects: [{ op: 'insert', table: 'AuditLog', row: { id: 'aud_1', actorId: IDS.avery, actorRole: 'customer', action: 'account_locked', entity: 'user', entityId: IDS.avery, reason: 'Too many failed login attempts', metadata: '{"failedLoginAttempts":5}', createdAt: NOW } }],
+    sources: [src(AUTHR, 166, 175, "action: 'account_locked'"), src(AUDIT, 44, 67, 'prisma.auditLog.create')],
+  },
+  {
+    id: 'lock-423',
+    kind: 'response',
+    title: '423 — the account is now locked',
+    from: ROUTE,
+    to: CLIENT,
+    label: '423 account_locked',
+    narrative: 'HTTP 423 Locked with "Too many failed attempts — this account is now temporarily locked." The page shows its locked-account message.',
+    detail: 2,
+    variants: [LOCKED],
+    payload: { title: 'Response', format: 'http-response', line: '423 Locked', data: { error: 'Too many failed attempts — this account is now temporarily locked.', code: 'account_locked' }, typeRef: 'sh:auth#ApiErrorResponse', highlight: ['code'] },
+    sources: [src(AUTHR, 176, 179, 'this account is now temporarily locked'), src(LOGIN_PAGE, 37, 38, "case 'account_locked'")],
+  },
+
+  // ---- locked-out: retry with the correct password ----------------------------------------
+  {
+    id: 'retry-correct',
+    kind: 'ui',
+    title: 'A minute later: try again with the correct password',
+    from: ACTOR,
+    to: PAGE,
+    label: 'submits the correct password',
+    narrative: 'Avery — the real account holder — now enters the correct password and submits. The same client call and the same request follow.',
+    audience: { 'end-user': 'You remember the right password and try again a minute later.' },
+    detail: 2,
+    variants: [LOCKED],
+    sources: [src(LOGIN_PAGE, 68, 73, 'await login(email.trim(), password)')],
+  },
+  {
+    id: 'retry-post',
+    kind: 'request',
+    title: 'POST /api/auth/login (second attempt)',
+    from: CLIENT,
+    to: ROUTE,
+    label: 'POST /api/auth/login',
+    narrative: 'The request passes the hooks, validation and user lookup exactly as before. The row it reads now has `failedLoginAttempts: 5` and a `lockedUntil` fourteen minutes in the future.',
+    detail: 3,
+    variants: [LOCKED],
+    payload: { title: 'Request', format: 'http-request', line: 'POST /api/auth/login', headers: REQUEST_HEADERS, data: { email: EMAIL, password: '•••••••• (correct)' }, typeRef: 'sh:auth#LoginRequest' },
+    sources: [src(CU_AUTH, 64, 69, 'export async function login')],
+  },
+  {
+    id: 'retry-locked',
+    kind: 'guard',
+    title: 'Lock check: still locked',
+    from: ROUTE,
+    to: LOCK,
+    label: 'isLocked(state, now) → true',
+    narrative: '`normalizeForAttempt` leaves a still-active lock untouched and `isLocked` returns true. The handler stops here: the password is never compared, so a correct password cannot open a locked account.',
+    audience: { executive: 'While the lock lasts, even the correct password is refused.' },
+    detail: 1,
+    variants: [LOCKED],
+    payload: { title: 'Lockout state', format: 'return', data: { failedLoginAttempts: 5, lockedUntil: LOCK_UNTIL, now: RETRY_AT, isLocked: true }, highlight: ['isLocked'] },
+    sources: [src(AUTHR, 134, 134, 'isLocked(state, now)'), src(LOCKOUT, 17, 20, 'state.lockedUntil.getTime() > now.getTime()')],
+  },
+  {
+    id: 'retry-login-event',
+    kind: 'db-write',
+    title: 'Record the refused attempt',
+    from: ROUTE,
+    to: LOGIN_EVENT,
+    label: 'insert LoginEvent (account_locked)',
+    narrative: 'The refused attempt is recorded with reason `account_locked`. The user row is not updated — the counter does not climb while locked — and no second audit row is written.',
+    detail: 3,
+    variants: [LOCKED],
+    payload: { title: 'LoginEvent row', format: 'row', data: { userId: IDS.avery, email: EMAIL, success: false, reason: 'account_locked', ip: IP, userAgent: UA }, highlight: ['reason'] },
+    effects: [{ op: 'insert', table: 'LoginEvent', row: { id: 'lev_6', userId: IDS.avery, email: EMAIL, success: false, reason: 'account_locked', ip: IP, userAgent: UA, createdAt: RETRY_AT } }],
+    sources: [src(AUTHR, 134, 141, "reason: 'account_locked'")],
+  },
+  {
+    id: 'retry-423',
+    kind: 'response',
+    title: '423 — try again later',
+    from: ROUTE,
+    to: CLIENT,
+    label: '423 account_locked',
+    narrative: 'HTTP 423 with "This account is temporarily locked due to repeated failed logins. Try again later." After 15:15 the next attempt is processed as if the counters were zero.',
+    detail: 2,
+    variants: [LOCKED],
+    payload: { title: 'Response', format: 'http-response', line: '423 Locked', data: { error: 'This account is temporarily locked due to repeated failed logins. Try again later.', code: 'account_locked' }, typeRef: 'sh:auth#ApiErrorResponse', highlight: ['code'] },
+    sources: [src(AUTHR, 142, 145, 'temporarily locked due to repeated failed logins'), src(AUTH_TEST, 105, 112, 'Even the CORRECT password is now refused while locked', 'Pinned by test')],
+  },
+  {
+    id: 'retry-message',
+    kind: 'ui',
+    title: 'The form says the account is temporarily locked',
+    from: PAGE,
+    to: ACTOR,
+    label: '"temporarily locked … wait a few minutes"',
+    narrative: 'The page shows "This account is temporarily locked after too many failed attempts. Please wait a few minutes and try again."',
+    audience: { 'end-user': 'You are told the account is locked for a few minutes.' },
+    detail: 2,
+    variants: [LOCKED],
+    sources: [src(LOGIN_PAGE, 37, 38, 'temporarily locked after too many failed attempts')],
+  },
+
+  // ---- success ------------------------------------------------------------------------------
+  {
+    id: 'reset-counters',
+    kind: 'db-write',
+    title: 'Reset the lockout counters and stamp the login time',
+    from: ROUTE,
+    to: USER,
+    label: 'user.update({ failedLoginAttempts: 0, lockedUntil: null, lastLoginAt })',
+    narrative: '`registerSuccess()` returns a clean lockout state; the handler writes it together with `lastLoginAt = now`.',
+    audience: { dba: '`UPDATE User SET failedLoginAttempts = 0, lockedUntil = NULL, lastLoginAt = ? WHERE id = ?`.' },
+    detail: 3,
+    variants: [OK],
+    payload: { title: 'Update', format: 'row', data: { id: IDS.avery, failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: NOW }, highlight: ['lastLoginAt'] },
+    effects: [{ op: 'update', table: 'User', id: IDS.avery, set: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: NOW } }],
+    sources: [src(AUTHR, 184, 193, 'registerSuccess()'), src(LOCKOUT, 46, 49, 'export function registerSuccess')],
+  },
+  {
+    id: 'create-session',
+    kind: 'call',
+    title: 'Create a session: random token, stored only as a hash',
+    from: ROUTE,
+    to: SESS,
+    label: 'createSession(prisma, user.id, now, ctx)',
+    narrative:
+      '`generateSessionToken()` produces 32 random bytes as 64 hex characters. `hashSessionToken()` takes their SHA-256. The function will return the RAW token to the handler and persist only the hash.',
+    audience: {
+      executive: 'The server issues a random pass for this browser and keeps only a fingerprint of it, so a stolen database cannot be used to impersonate customers.',
+      systems: 'Opaque bearer token (256 bits of entropy) held client-side in an httpOnly cookie; server stores SHA-256(token) only.',
+    },
+    detail: 2,
+    variants: [OK],
+    payload: { title: 'Token', format: 'return', data: { token: RAW_TOKEN, tokenHash: TOKEN_HASH }, highlight: ['tokenHash'] },
+    sources: [src(AUTHR, 194, 194, 'createSession(prisma, user.id, now, ctx)'), src(SESSIONS, 24, 43, 'export async function createSession'), src(TOKENS, 14, 22, 'export function hashSessionToken')],
+  },
+  {
+    id: 'insert-session',
+    kind: 'db-write',
+    title: 'Insert the Session row',
+    from: SESS,
+    to: SESSION,
+    label: 'session.create({ userId, tokenHash, expiresAt })',
+    narrative: 'The row links the hash to the user, with `createdAt = lastSeenAt = now` and `expiresAt = now + 8 hours`. `ip` and `userAgent` come from the request context — the constant `public-demo` in public-demo mode.',
+    audience: {
+      executive: 'The sign-in is recorded as an active session that lasts while the customer keeps using the site.',
+      dba: 'One insert into `Session`. `tokenHash` is unique-indexed (it is the lookup key on every later request); `userId` is indexed and cascades on user delete.',
+    },
+    detail: 1,
+    variants: [OK],
+    payload: { title: 'Session row', format: 'row', data: { userId: IDS.avery, tokenHash: TOKEN_HASH, createdAt: NOW, lastSeenAt: NOW, expiresAt: EXPIRES, revokedAt: null, ip: IP, userAgent: UA }, highlight: ['tokenHash', 'expiresAt'] },
+    effects: [{ op: 'insert', table: 'Session', row: { id: 'ses_1', userId: IDS.avery, tokenHash: TOKEN_HASH, createdAt: NOW, lastSeenAt: NOW, expiresAt: EXPIRES, revokedAt: null, ip: IP, userAgent: UA } }],
+    sources: [src(SESSIONS, 31, 41, 'prisma.session.create'), src(SESSIONS, 11, 13, 'AUTH.sessionTtlMinutes')],
+  },
+  {
+    id: 'set-cookie',
+    kind: 'call',
+    title: 'Put the raw token in the session cookie',
+    from: ROUTE,
+    to: ROUTE,
+    label: "reply.setCookie('mer_session', token, …)",
+    narrative:
+      'The cookie NAME comes from the request\'s surface: no surface header and a customer (or absent) Origin means `mer_session`; the operations console would get `mer_ops_session`. Attributes: `HttpOnly` (page script cannot read it), `SameSite=Lax`, `Path=/`, `Max-Age=28800` (8 hours) and `Secure` when the server runs in production.',
+    audience: {
+      'end-user': 'Your browser is given a sign-in cookie that the page itself cannot read.',
+      systems: 'Per-surface cookie names keep the customer and operations sessions independent in one browser. `Secure` follows `config.secureCookies` (NODE_ENV=production or COOKIE_SECURE).',
+    },
+    detail: 3,
+    variants: [OK],
+    payload: { title: 'Set-Cookie', format: 'json', data: { name: 'mer_session', value: RAW_TOKEN, httpOnly: true, sameSite: 'lax', path: '/', maxAge: 28800, secure: false } },
+    sources: [src(AUTHR, 195, 195, 'reply.setCookie(sessionCookieNameForRequest(req), token, sessionCookieOptions())'), src(COOKIES, 96, 103, 'export function sessionCookieOptions'), src(COOKIES, 76, 86, 'export function sessionCookieNameForRequest')],
+  },
+  {
+    id: 'success-login-event',
+    kind: 'db-write',
+    title: 'Record the successful sign-in',
+    from: ROUTE,
+    to: LOGIN_EVENT,
+    label: "insert LoginEvent (ok)",
+    narrative: 'One login-history row with `success: true` and reason `ok`. It will be the newest entry in Avery\'s recent sign-in activity.',
+    detail: 3,
+    variants: [OK],
+    payload: { title: 'LoginEvent row', format: 'row', data: { userId: IDS.avery, email: EMAIL, success: true, reason: 'ok', ip: IP, userAgent: UA }, highlight: ['success'] },
+    effects: [{ op: 'insert', table: 'LoginEvent', row: { id: 'lev_1', userId: IDS.avery, email: EMAIL, success: true, reason: 'ok', ip: IP, userAgent: UA, createdAt: NOW } }],
+    sources: [src(AUTHR, 196, 202, "reason: 'ok'")],
+  },
+  {
+    id: 'login-audit',
+    kind: 'db-write',
+    title: 'Write the sign-in to the audit log',
+    from: ROUTE,
+    to: ROUTE,
+    label: "writeAudit({ action: 'login', entity: 'session' })",
+    narrative: 'An `AuditLog` row with action `login` and entity `session`. As written, `entityId` is the USER id, not the new session\'s id (logout, by contrast, records the session id).',
+    audience: { dba: 'One `AuditLog` insert. Note `entityId = user.id` although `entity = \'session\'`.' },
+    detail: 4,
+    variants: [OK],
+    payload: { title: 'AuditLog row', format: 'row', data: { actorId: IDS.avery, actorRole: 'customer', action: 'login', entity: 'session', entityId: IDS.avery }, highlight: ['action'] },
+    effects: [{ op: 'insert', table: 'AuditLog', row: { id: 'aud_1', actorId: IDS.avery, actorRole: 'customer', action: 'login', entity: 'session', entityId: IDS.avery, reason: null, metadata: null, createdAt: NOW } }],
+    sources: [src(AUTHR, 203, 209, 'entityId: user.id')],
+  },
+  {
+    id: 'respond-200',
+    kind: 'response',
+    title: '200 — the user, plus the session cookie',
+    from: ROUTE,
+    to: CLIENT,
+    label: '200 { user } + Set-Cookie',
+    narrative: 'The body is `{ user }` reduced to id, email, display name and role — never the password hash. The session token travels only in the `Set-Cookie` header.',
+    audience: { executive: 'The server confirms who signed in.', 'end-user': 'You are signed in.' },
+    detail: 2,
+    variants: [OK],
+    payload: {
+      title: 'Response',
+      format: 'http-response',
+      line: '200 OK',
+      headers: { 'Set-Cookie': 'mer_session=<token>; Max-Age=28800; Path=/; HttpOnly; SameSite=Lax' },
+      data: { user: SESSION_USER },
+      typeRef: 'sh:auth#AuthResponse',
+    },
+    sources: [src(AUTHR, 210, 210, 'toSessionUser(user)'), src(AUTH_TEST, 26, 40, 'expect(cookie?.httpOnly).toBe(true)', 'Pinned by test')],
+  },
+  {
+    id: 'set-user',
+    kind: 'client',
+    title: 'Cache the user and navigate',
+    from: CLIENT,
+    to: PAGE,
+    label: '{ ok: true, user } → setUser → navigate',
+    narrative:
+      '`login()` returns `{ ok: true, user }`. The auth provider stores the user in React state — no second request is made — and the page navigates to the originally requested protected path, or `/dashboard`. Only local paths (starting with `/`) are honoured as a redirect target.',
+    detail: 3,
+    variants: [OK],
+    payload: { title: 'LoginResult', format: 'return', data: { ok: true, user: SESSION_USER }, typeRef: 'sh:auth#SessionUser' },
+    sources: [src(CU_AUTH, 71, 75, 'return { ok: true, user: body.user }'), src(CU_PROVIDER, 36, 40, 'if (result.ok) setUser(result.user)'), src(LOGIN_PAGE, 63, 77, 'navigate(redirectTo, { replace: true })')],
+  },
+  {
+    id: 'dashboard',
+    kind: 'ui',
+    title: 'Avery lands on the dashboard',
+    from: PAGE,
+    to: ACTOR,
+    label: 'shows /dashboard',
+    narrative: 'The route guard now finds a user in the auth context and renders the dashboard, which starts its own account requests carrying the new cookie.',
+    audience: { executive: 'The customer is in, looking at their accounts.', 'end-user': 'You see your dashboard.' },
+    detail: 1,
+    variants: [OK],
+    sources: [src(`${CU}/components/RequireAuth.tsx`, 11, 32, 'export function RequireAuth')],
+  },
+
+  // ---- success: later, a reload hydrates the session from the cookie ----------------------------
+  {
+    id: 'reload-me',
+    kind: 'request',
+    title: 'Twenty minutes later: a page reload asks "who am I?"',
+    from: CLIENT,
+    to: ROUTE,
+    label: 'GET /api/auth/me',
+    narrative:
+      'React state does not survive a reload, so on mount the auth provider calls `fetchMe()`: `GET /api/auth/me` with credentials. The browser attaches the httpOnly `mer_session` cookie automatically; page script never sees its value.',
+    audience: {
+      executive: 'When the customer comes back or refreshes, the site asks the server whether this browser is still signed in.',
+      'end-user': 'If you refresh the page you stay signed in.',
+    },
+    detail: 1,
+    variants: [OK],
+    payload: { title: 'Request', format: 'http-request', line: 'GET /api/auth/me', headers: { Cookie: `mer_session=<token>; mer_csrf=${CSRF_TOKEN}` }, data: null },
+    sources: [src(CU_PROVIDER, 24, 34, 'authApi.fetchMe()'), src(CU_AUTH, 105, 114, 'export async function fetchMe')],
+  },
+  {
+    id: 'require-auth',
+    kind: 'guard',
+    title: 'requireAuth resolves the cookie',
+    from: ROUTE,
+    to: SESS,
+    label: 'requireAuth → resolveSession(prisma, token, now)',
+    narrative:
+      'The route\'s preHandler picks the cookie name for the request\'s surface (`mer_session`), reads the token and calls `resolveSession`. With no cookie it would answer 401 `unauthenticated`; with one that does not resolve it clears the cookie and answers 401 `session_expired`.',
+    detail: 3,
+    variants: [OK],
+    sources: [src(GUARDS, 47, 59, 'resolveSession(prisma, token, new Date())'), src(AUTHR, 237, 237, 'preHandler: requireAuth')],
+  },
+  {
+    id: 'session-read',
+    kind: 'db-read',
+    title: 'Find the session by token hash',
+    from: SESS,
+    to: SESSION,
+    label: 'session.findUnique({ tokenHash }) include user',
+    narrative: 'The token is hashed again and looked up by the unique `tokenHash`, joining the user. The session must not be revoked, must not be past `expiresAt`, and its user must be `active`.',
+    audience: { dba: 'A unique-index lookup on `Session.tokenHash` joined to `User` — it runs on every authenticated request.' },
+    detail: 3,
+    variants: [OK],
+    payload: { title: 'Session row', format: 'row', data: { id: 'ses_1', userId: IDS.avery, tokenHash: TOKEN_HASH, expiresAt: EXPIRES, revokedAt: null } },
+    sources: [src(SESSIONS, 55, 62, 'prisma.session.findUnique')],
+  },
+  {
+    id: 'session-slide',
+    kind: 'db-write',
+    title: 'Slide the idle timeout forward',
+    from: SESS,
+    to: SESSION,
+    label: 'session.update({ lastSeenAt, expiresAt })',
+    narrative: 'Every use extends the session: `lastSeenAt = now` and `expiresAt = now + 8 hours`. On the server a session therefore ends only after eight idle hours, or on logout. The cookie is not re-issued here: its `Max-Age` was fixed at sign-in, so the browser drops it eight hours after login regardless.',
+    audience: { executive: 'Using the site keeps the customer signed in; eight idle hours signs them out.', dba: 'One `UPDATE Session SET lastSeenAt = ?, expiresAt = ? WHERE id = ?` per authenticated request.' },
+    detail: 2,
+    variants: [OK],
+    payload: { title: 'Update', format: 'row', data: { id: 'ses_1', lastSeenAt: RELOAD_AT, expiresAt: RELOAD_EXPIRES }, highlight: ['expiresAt'] },
+    effects: [{ op: 'update', table: 'Session', id: 'ses_1', set: { lastSeenAt: RELOAD_AT, expiresAt: RELOAD_EXPIRES } }],
+    sources: [src(SESSIONS, 64, 68, 'Sliding idle timeout')],
+  },
+  {
+    id: 'me-200',
+    kind: 'response',
+    title: '200 — still Avery',
+    from: ROUTE,
+    to: CLIENT,
+    label: '200 { user }',
+    narrative: 'The guard put `{ id, email, displayName, role }` on `req.user`; the handler echoes it. The provider sets the user and clears `loading`, and the protected page renders without showing the login form.',
+    audience: { 'end-user': 'The page loads straight into your account.' },
+    detail: 2,
+    variants: [OK],
+    payload: { title: 'Response', format: 'http-response', line: '200 OK', data: { user: SESSION_USER }, typeRef: 'sh:auth#AuthResponse' },
+    sources: [src(AUTHR, 237, 241, 'reply.send({ user }'), src(GUARDS, 60, 65, 'req.user = {'), src(CU_PROVIDER, 24, 30, 'setLoading(false)')],
+  },
+];
+
+export const scenario: Scenario = {
+  id: 'login',
+  title: 'Signing in',
+  question: 'What happens when someone signs in?',
+  summary:
+    'A customer submits email and password from the customer app. The backend rate-limits (public demo only), looks the user up, applies the lockout policy, verifies the password with bcrypt, records the attempt, opens a session whose token is stored only as a hash, and sets an httpOnly cookie. A later page load restores the session from that cookie.',
+  category: 'security',
+  tags: ['auth', 'security', 'audit', 'public-demo'],
+  participants: [ACTOR, PAGE, CLIENT, ROUTE, LOCK, VERIFY, SESS, USER, SESSION, LOGIN_EVENT],
+  related: [
+    'ep:POST /api/auth/login',
+    'ep:GET /api/auth/me',
+    'feat:auth',
+    'be:routes/auth',
+    'be:auth/lockout',
+    'be:auth/sessions#createSession',
+    'be:auth/sessions#resolveSession',
+    'be:auth/password#verifyPassword',
+    'be:auth/audit#recordLoginEvent',
+    'be:abuse/rate-limit#rateLimit',
+    'be:auth/guards#requireAuth',
+    'cu:pages/Login',
+    'cu:lib/auth',
+    'cu:lib/AuthProvider',
+    'db:User',
+    'db:Session',
+    'db:LoginEvent',
+  ],
+  variants: [
+    { id: OK, label: 'Correct password', description: 'The password matches: counters reset, a session is created, the cookie is set, and a later reload restores the session.', outcome: 'success' },
+    { id: WRONG, label: 'Wrong password', description: 'The password does not match: the failure is counted and recorded, and the response is a generic 401.', outcome: 'rejected' },
+    { id: LOCKED, label: 'Fifth failure locks the account', description: 'The fifth wrong password in a row locks the account for 15 minutes; a retry with the correct password is then refused.', outcome: 'rejected' },
+    { id: UNKNOWN, label: 'Unknown email', description: 'No such user: a decoy bcrypt comparison runs and the response is the same generic 401.', outcome: 'rejected' },
+    { id: DISABLED, label: 'Disabled account', description: 'The user exists but is disabled: refused with 403 before the password is checked.', outcome: 'rejected' },
+    { id: LIMITED, label: 'Rate-limited (public demo)', description: 'The client has exhausted the `login` bucket: 429 before any lookup or hashing.', outcome: 'rejected' },
+  ],
+  defaultVariant: OK,
+  initialState: {
+    ...baseState(),
+    User: baseState().User.map((u) => ({ ...u, failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: null })),
+  },
+  steps,
+  sources: [src(AUTHR, 69, 78, 'export async function authRoutes'), src(AUTH_TEST, 8, 25, "describe('auth routes'")],
+};
