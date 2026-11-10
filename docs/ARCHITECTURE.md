@@ -195,9 +195,82 @@ remove access — explicit expansion, search and the inspector reach everything.
 
 ## 6. The three modes
 
-See the per-mode sections of [USER_GUIDE.md](USER_GUIDE.md) for behaviour.
-Implementation notes for each mode live at the top of its entry file
-(`atlas/Atlas.tsx`, `theater/Theater.tsx`, `studio/Studio.tsx`).
+Each mode is a directory with one lazily-loaded entry component. A mode owns
+its rendering and its local view state; anything another mode or a deep link
+must be able to drive lives in `useApp`. The header comment of each entry file
+lists its files in detail.
+
+### Architecture Atlas (`src/atlas/`)
+
+React Flow renders the map, but layout, visibility and edge routing are the
+Atlas's own pure functions:
+
+- `visibility.ts` — which entities are on the map: an expanded container shows
+  the children that pass the detail dial, plus anything hypothetical, selected,
+  explicitly revealed or matched by the feature lens; focus mode and
+  neighbourhood isolation prune the tree; focus adds faded stubs.
+- `layout.ts` / `scene.ts` — a deterministic nested-rows layout sized bottom-up
+  from the model's `layout.row` / `order` hints. Expanding a container never
+  reorders siblings; rectangles tween for ~200 ms. No force simulation.
+- `edges.ts` — `model.liftRelations(visibleIds, channels)` → edge specs with
+  side/port routing, thickness by count, and a label-collision plan.
+- `emphasis.ts`, `nav.ts`, `viewport.ts` — dependency highlight / spotlight /
+  lens, arrow-key navigation, and the camera policy (frame the selection at a
+  readable zoom; fit a freshly expanded container; fit-all only on request).
+- `useScene.ts` memoises the pipeline; `store.ts` holds local state (hover,
+  effects, sidebar) that nodes subscribe to individually, so hovering never
+  rebuilds the graph. Semantic zoom switches node content by zoom band.
+
+State in `useApp().atlas`: `expanded`, `focus`, `channels`, `isolate`, `lens`.
+
+### Scenario Theater (`src/theater/`)
+
+`useApp().theater` (`scenarioId`, `variant`, `stepIndex`, `view`, `speed`) is
+the single source of truth. The scenario is resolved from unsaved drafts →
+the workspace's custom scenarios → the model (including hypothetical layers) →
+`assembleTrace` for `trace:<endpoint>` ids. Everything else is derived:
+
+- `logic.ts` (pure) — scenario resolution, step marks (decisions, database
+  changes), variant mapping when switching outcome, the paths overview,
+  playback pacing, the stage layout (app groups in causal order), editing
+  operations and the Studio hand-off.
+- Views: `SequenceView` (SVG lanes with sticky headers), `StageView`
+  (participants grouped by application; the current edge animates),
+  `TimelineView` (storyboard cards). `Transport` drives playback; `StepPanel`
+  shows narrative, payload, database before/after (`diffStates`), derived
+  balances and code for the current step.
+- `Editor.tsx` + `drafts.ts` — edit mode works on a draft copy (session-backed)
+  that becomes a custom scenario on save. User-written and imported steps are
+  always labelled hypothetical.
+
+### Explanation Studio (`src/studio/`)
+
+A controlled React Flow canvas over a zustand store:
+
+- `store.ts` — live nodes and edges, selection, undo/redo (snapshot stack; a
+  drag or resize is one checkpoint), spotlight / highlight path, path
+  animation, fit requests. The active board autosaves (debounced) to the
+  workspace as generic `StudioNode` / `StudioEdge` envelopes.
+- `logic/` (pure, unit-tested) — geometry and alignment; a layered left→right
+  layout; `modelEdges.ts`, which decides what a line between two entities
+  *means* (a known relationship from the model, a hypothetical one from a
+  layer, or not-in-Meridian → drawn as proposed); `build.ts` generators
+  (dependency diagram, connections, children, neighbours, guided question,
+  overview, before/after, sequence from a chain, inbox import); `widgets.ts`
+  bindings from model content to widget data.
+- `nodes/`, `edges/` — entity cards, shapes, text, notes, callouts, frames and
+  eleven widgets built on the shared viewers; one edge type whose status is
+  computed live from the model, so switching a hypothetical layer off changes
+  how its lines are drawn.
+- Cross-mode requests arrive through `useApp().studioInbox` and are placed by
+  `planImport()`.
+
+### What the modes share, and what they do not
+
+Shared: the model and its query API, the inspector, search, audience/detail,
+hypothetical layers, saved views, deep links, viewers, design tokens, hotkey
+registry. Not shared: rendering, layout and interaction code — each mode has
+its own, because the comparison is between interaction philosophies.
 
 ## 7. Testing
 

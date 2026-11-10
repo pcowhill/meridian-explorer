@@ -214,7 +214,73 @@ current step.
 map; **Send to Studio** lays the participants out left to right with the steps
 as numbered connections; the link icon copies a link to this exact step.
 
-<!-- STUDIO -->
+## Explanation Studio
+
+*Constructive: build whatever picture answers the question in front of you.*
+
+**Start.** An empty board offers the fastest ways in: a search box over every
+Meridian component (`N`), the guided questions, **System overview**, templates,
+or a hypothetical component. From any other mode, **Add to Studio** sends what
+you are looking at here.
+
+**Palette** (left):
+
+- **Meridian** — search or browse by kind; click to add at the centre of the
+  view, or drag onto the canvas. With **Auto-connect known relationships** on,
+  a component arrives already connected to whatever on the board it really
+  relates to, with labels taken from the model.
+- **Shapes** — text, sticky note, rectangle and other shapes, callout, frame.
+- **Widgets** — interactive technical objects:
+  *Code* (a real source excerpt with its GitHub link, or your own pseudocode),
+  *JSON* (an example payload you can expand, highlight, hide fields in and
+  edit), *Database table* (columns and example rows), *Class / type* (a
+  UML-style card), *Endpoint contract*, *Sequence diagram* (a scenario or an
+  endpoint trace with a step slider), *State machine*, *Timeline*,
+  *Before / after* (two panes with differences marked), *Transformation*
+  (input → function → output), and the *Balance calculator*.
+- **Templates** — built-in starting points and anything you saved.
+
+**Editing.** Select, shift-click or drag-select; move; resize by the handles;
+double-click (or `Enter`) to edit a label; `Delete`; duplicate `Ctrl/⌘ D`;
+copy / paste `Ctrl/⌘ C` / `V` (across boards too); undo / redo
+`Ctrl/⌘ Z` / `Shift+Ctrl/⌘ Z`; nudge with the arrow keys. The selection panel
+(top right) has style and arrange: colours, outline, text size, alignment,
+order, lock, hide (`X` — hidden items are listed in the toolbar so you can
+bring them back), group into a frame (`Ctrl/⌘ G`), and *mark as proposed*.
+
+**Connections.** Drag from a handle on one node to another, or press `C` for
+connect mode and click source then target. Double-click a line to label it;
+style it from the selection panel (solid / dashed / dotted, arrowheads,
+colour, animated, numbered). A line between two components that are really
+related becomes a **known relationship** — click it and the inspector shows
+the protocol, data and source. A line you draw between components that are
+*not* related in the model is drawn dashed and purple as **proposed**, with an
+offer to record it as a hypothetical relationship: a hand-drawn line never
+looks like a verified fact.
+
+**Generate** (toolbar) — the one-click constructions:
+
+| Command | Result |
+| --- | --- |
+| Dependency diagram | The selected component in the middle, what it depends on to one side, what depends on it to the other |
+| Connections between two | Every relationship between two selected components, or the shortest chain through intermediates |
+| Add children / neighbours | Expand the selected component on the board |
+| To sequence | Turn a selected chain, or an endpoint, into a sequence widget |
+| Highlight path / Spotlight `S` | Emphasise the selection; dim the rest |
+| Animate path `Shift+P` | A token travels the selected chain, edge by edge, with play / step controls |
+| Before / after | Duplicate the selection into *Existing* and *Proposed* frames |
+| From a question | One of the eight guided questions as a starting board |
+| System overview | Applications, database and people with their relationships |
+| Auto-layout `L` | Tidy the selection or the board, left to right — only when you ask |
+
+**What-if.** `Shift+H` adds a hypothetical component and places it on the
+board; anything hypothetical is dashed and purple, and a legend chip appears
+whenever something proposed is on the board.
+
+**Boards.** Several named boards (switcher at the top left: new, rename,
+duplicate, delete), saved automatically. Export or import a board as JSON,
+export the view as a PNG, or save a selection as a reusable template.
+
 
 
 ## Modelling hypothetical changes
@@ -327,4 +393,27 @@ you type in a field, and every one has a visible control.
 | `L` | Show / hide the library |
 | `Ctrl/⌘ S` | Save scenario |
 
-<!-- STUDIO-SHORTCUTS -->
+### Explanation Studio
+
+| Key | Action |
+| --- | --- |
+| `N` | Add a Meridian component (search) |
+| `C` | Connect mode (click source, then target) |
+| `T` · `M` · `R` | Add text · sticky note · rectangle |
+| `F` | Frame around the selection (or a new frame) |
+| `K` · `J` | Code widget · JSON widget for the selected component |
+| `X` | Hide the selection |
+| `Delete` / `Backspace` | Delete the selection |
+| `Ctrl/⌘ Z` · `Shift+Ctrl/⌘ Z` | Undo · redo |
+| `Ctrl/⌘ D` | Duplicate |
+| `Ctrl/⌘ C` · `Ctrl/⌘ V` | Copy · paste (works across boards) |
+| `Ctrl/⌘ A` | Select everything |
+| `Ctrl/⌘ G` | Group the selection into a frame |
+| `S` | Spotlight the selection |
+| `0` | Zoom to fit |
+| `L` | Auto-layout the selection (or the board) |
+| `Shift+H` | Add a hypothetical component |
+| `Shift+P` | Animate the selected path |
+| `Enter` | Edit the label of the selected element |
+| Arrow keys | Nudge the selection (`Shift`: further) |
+
