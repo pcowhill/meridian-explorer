@@ -120,8 +120,10 @@ add a `StateMachine` with each transition's `by` (function entity id) and `sourc
 ## Scenarios
 
 A scenario is an ordered list of steps over a set of participants (the lanes of
-a sequence diagram). Put each one in `src/model/data/scenarios/<id>.ts`, export
-`scenario`, and import it into your slice's `scenarios` array.
+a sequence diagram). Put each one in `src/model/data/scenarios/<id>.ts` and export
+`scenario`. `scripts/gen-scenario-index.ts` (run by `npm run model:verify`)
+regenerates `scenarios/index.ts` from the files in that directory — do not
+register scenarios by hand.
 
 - `participants`: 4–9 entity ids ordered left→right in causal order (actor role →
   page → client lib → endpoint/route group → guards → service → shared function →
@@ -157,9 +159,15 @@ a sequence diagram). Put each one in `src/model/data/scenarios/<id>.ts`, export
 ## Checking your work
 
 ```bash
-npx tsx scripts/verify-model.ts --slice <your slice name>   # must report 0 errors for your slice
-npx tsc -p tsconfig.app.json --noEmit                        # your files must type-check
+npm run model:verify                                         # integrity + every source reference; must report 0 errors
+npx tsx scripts/verify-model.ts --slice <slice name>         # only one slice's issues
+npm run model:snippets                                       # re-extract the bundled excerpts after changing sources
+npm run typecheck && npm test                                # the unit tests replay every scenario's database effects
 ```
+
+The verifier and the snippet extractor need a clone of Meridian at the pinned
+commit (`../pcowhill/claude-banking-project`, `../claude-banking-project` or
+`$MERIDIAN_DIR`).
 
 Unresolved references to ids owned by *other* slices are expected while those
 slices are in progress; list them in your hand-off so they can be reconciled.
