@@ -16,7 +16,7 @@ import {
 import { useShallow } from 'zustand/react/shallow';
 import { useApp } from '@/state/app';
 import { cn } from '@/ui/primitives';
-import { addEntity, addFree, addWidget, fitPadding, registerFlow } from './commands';
+import { addEntity, addFree, addWidget, fitContent, refitAfterResize, registerFlow } from './commands';
 import { edgeTypes } from './edges/StudioEdge';
 import { selectEdge, sharedSelectionForNode } from './interactions';
 import { bindingItems, type WidgetKind } from './logic/widgets';
@@ -54,7 +54,13 @@ export function Canvas() {
 
   useEffect(() => {
     registerFlow(flow, wrap.current);
-    return () => registerFlow(null, null);
+    // If the canvas changes size just after a fit (inspector/panel opening), fit again once.
+    const ro = typeof ResizeObserver !== 'undefined' && wrap.current ? new ResizeObserver(() => refitAfterResize()) : null;
+    if (ro && wrap.current) ro.observe(wrap.current);
+    return () => {
+      ro?.disconnect();
+      registerFlow(null, null);
+    };
   }, [flow]);
 
   // Restore the saved viewport when a board loads (or fit it once if none was saved).
@@ -64,7 +70,7 @@ export function Canvas() {
     restored.current = boardId;
     const t = window.setTimeout(() => {
       if (viewport) void flow.setViewport(viewport);
-      else if (useStudio.getState().nodes.length) void flow.fitView({ padding: fitPadding(), maxZoom: 1.1 });
+      else if (useStudio.getState().nodes.length) fitContent([], 0);
       else void flow.setViewport({ x: 80, y: 80, zoom: 1 });
     }, 20);
     return () => window.clearTimeout(t);
@@ -73,7 +79,7 @@ export function Canvas() {
   useEffect(() => {
     if (!fitRequest) return;
     const t = window.setTimeout(() => {
-      void flow.fitView({ nodes: fitRequest.ids.map((id) => ({ id })), padding: fitPadding(), duration: 320, maxZoom: 1.2 });
+      fitContent(fitRequest.ids, 320);
     }, 40);
     return () => window.clearTimeout(t);
   }, [fitRequest, flow]);

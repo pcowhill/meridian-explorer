@@ -71,17 +71,64 @@ export function fitPadding(): { top: `${number}px`; right: `${number}px`; bottom
   const legend = canvasEl?.parentElement?.querySelector('[data-testid=hypo-legend]');
   const h = canvasEl?.getBoundingClientRect().height ?? 800;
   let top = legend ? 64 : 40;
-  let right = 40;
+  let right = 24;
   // A short panel only takes the top strip; a tall one takes the right column.
   if (panel && panel.height < h * 0.3) top = Math.max(top, Math.round(panel.height + 28));
   else if (panel) right = Math.round(panel.width + 36);
-  return { top: `${top}px`, right: `${right}px`, bottom: '76px', left: '40px' };
+  return { top: `${top}px`, right: `${right}px`, bottom: '72px', left: '24px' };
+}
+
+/** How many layered columns fit the visible canvas at a readable zoom (0.6). */
+export function layoutColumns(): number {
+  const w = canvasEl?.getBoundingClientRect().width ?? 1000;
+  const unit = DEFAULT_SIZE.entity.w + 120;
+  return Math.max(2, Math.min(6, Math.floor(((w - 48) / 0.6 + 120) / unit)));
+}
+
+let lastFit: { ids: string[]; at: number } | null = null;
+
+/**
+ * Fit content into the part of the canvas that is actually free (clear of the
+ * floating panels): max zoom 1; for up to ~14 nodes never below 0.6 (the
+ * content then starts at the top-left of the free area instead of shrinking).
+ */
+export function fitContent(ids: string[], duration = 300): void {
+  if (!flow || !canvasEl) return;
+  const s = st();
+  const visible = s.nodes.filter((n) => !n.hidden);
+  const set = new Set(ids);
+  const target = ids.length ? visible.filter((n) => set.has(n.id)) : visible;
+  if (!target.length) return;
+  const b = flow.getNodesBounds(target.map((n) => n.id));
+  const p = fitPadding();
+  const px = (v: string) => parseFloat(v);
+  const rect = canvasEl.getBoundingClientRect();
+  const left = px(p.left);
+  const top = px(p.top);
+  const availW = Math.max(120, rect.width - left - px(p.right));
+  const availH = Math.max(120, rect.height - top - px(p.bottom));
+  let zoom = Math.min(availW / Math.max(1, b.width), availH / Math.max(1, b.height), 1);
+  zoom = Math.max(zoom, target.length <= 14 ? 0.6 : 0.08);
+  const w = b.width * zoom;
+  const h = b.height * zoom;
+  const x = (w <= availW ? left + (availW - w) / 2 : left) - b.x * zoom;
+  const y = (h <= availH ? top + (availH - h) / 2 : top) - b.y * zoom;
+  void flow.setViewport({ x, y, zoom }, { duration });
+  lastFit = { ids, at: Date.now() };
+}
+
+/** The canvas resized right after a fit (e.g. the inspector opened): fit once more. */
+export function refitAfterResize(): void {
+  if (lastFit && Date.now() - lastFit.at < 600) {
+    const ids = lastFit.ids;
+    lastFit = null;
+    fitContent(ids, 160);
+  }
 }
 
 export function fitTo(ids: string[], duration = 280): void {
   if (!flow) return;
-  const nodes = ids.length ? ids.map((id) => ({ id })) : undefined;
-  window.setTimeout(() => void flow?.fitView({ nodes, padding: fitPadding(), duration, maxZoom: 1.25 }), 30);
+  window.setTimeout(() => fitContent(ids, duration), 40);
 }
 
 /** Bring a rectangle into view: fit a small board entirely, otherwise pan to it. */
@@ -89,7 +136,7 @@ function ensureVisible(r: { x: number; y: number; w: number; h: number }): void 
   if (isOnScreen(r, 24)) return;
   const nodes = st().nodes.filter((n) => !n.hidden);
   window.setTimeout(() => {
-    if (nodes.length <= 14) void flow?.fitView({ padding: fitPadding(), duration: 280, maxZoom: 1.1 });
+    if (nodes.length <= 14) fitContent([], 280);
     else void flow?.setCenter(r.x + r.w / 2, r.y + r.h / 2, { zoom: flow.getZoom(), duration: 280 });
   }, 30);
 }
@@ -273,11 +320,11 @@ export function generate(kind: GenerateKind, arg?: string | number): void {
     }
     case 'question': {
       const q = GUIDED_QUESTIONS.find((x) => x.id === arg) ?? GUIDED_QUESTIONS[0];
-      applyPatch(placeEntities(model, s.nodes, s.edges, q.studio.entities, { title: q.studio.title, note: q.question, autoConnect: true }));
+      applyPatch(placeEntities(model, s.nodes, s.edges, q.studio.entities, { title: q.studio.title, note: q.question, autoConnect: true, maxColumns: layoutColumns() }));
       return;
     }
     case 'overview':
-      applyPatch(placeEntities(model, s.nodes, s.edges, systemOverviewIds(model), { title: 'Meridian — system overview', autoConnect: true }));
+      applyPatch(placeEntities(model, s.nodes, s.edges, systemOverviewIds(model), { title: 'Meridian — system overview', autoConnect: true, maxColumns: layoutColumns() }));
       return;
   }
 }

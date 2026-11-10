@@ -31,7 +31,7 @@ import { useApp } from '@/state/app';
 import { useWorkspace } from '@/state/workspace';
 import { HypotheticalComponentDialog } from '@/shell/ProposeChange';
 import { cn } from '@/ui/primitives';
-import { addEntity, applyPatch, copySelection, paste, saveNow } from './commands';
+import { addEntity, applyPatch, copySelection, layoutColumns, paste, saveNow } from './commands';
 import { Canvas } from './Canvas';
 import { TemplateDialog, WidgetPicker } from './Dialogs';
 import { useStudioHotkeys } from './hotkeys';
@@ -115,7 +115,7 @@ function useInbox(): void {
     const items = useApp.getState().consumeStudioInbox();
     for (const req of items) {
       const s = useStudio.getState();
-      const patch = planImport(currentModel(), s.nodes, s.edges, req);
+      const patch = planImport(currentModel(), s.nodes, s.edges, req, layoutColumns());
       applyPatch(patch);
     }
   }, [inbox]);

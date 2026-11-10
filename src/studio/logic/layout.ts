@@ -42,7 +42,7 @@ export function rankItems(ids: readonly string[], edges: readonly LayoutEdge[]):
 }
 
 /** Layered left→right layout. Returns top-left positions relative to (0, 0). */
-export function layered(items: readonly LayoutItem[], edges: readonly LayoutEdge[], opts: { gapX?: number; gapY?: number } = {}): Map<string, Point> {
+export function layered(items: readonly LayoutItem[], edges: readonly LayoutEdge[], opts: { gapX?: number; gapY?: number; maxColumns?: number } = {}): Map<string, Point> {
   const gapX = opts.gapX ?? 110;
   const gapY = opts.gapY ?? 36;
   const ids = items.map((i) => i.id);
@@ -86,21 +86,28 @@ export function layered(items: readonly LayoutItem[], edges: readonly LayoutEdge
   }
 
   const size = new Map(items.map((i) => [i.id, i]));
-  const heights = columns.map((col) => col.reduce((s, id) => s + size.get(id)!.h, 0) + Math.max(0, col.length - 1) * gapY);
-  const tallest = Math.max(...heights);
+  const filled = columns.filter((c) => c.length);
+  // Long chains wrap into bands (read left→right, then the next band below) so they stay readable.
+  const maxC = Math.max(1, opts.maxColumns ?? Infinity);
   const pos = new Map<string, Point>();
-  let x = 0;
-  columns.forEach((col, ci) => {
-    if (!col.length) return;
-    const width = Math.max(...col.map((id) => size.get(id)!.w));
-    let y = (tallest - heights[ci]) / 2;
-    for (const id of col) {
-      const it = size.get(id)!;
-      pos.set(id, { x: Math.round(x + (width - it.w) / 2), y: Math.round(y) });
-      y += it.h + gapY;
-    }
-    x += width + gapX;
-  });
+  let bandY = 0;
+  for (let start = 0; start < filled.length; start += maxC) {
+    const band = filled.slice(start, start + maxC);
+    const heights = band.map((col) => col.reduce((s, id) => s + size.get(id)!.h, 0) + Math.max(0, col.length - 1) * gapY);
+    const tallest = Math.max(...heights);
+    let x = 0;
+    band.forEach((col, ci) => {
+      const width = Math.max(...col.map((id) => size.get(id)!.w));
+      let y = bandY + (tallest - heights[ci]) / 2;
+      for (const id of col) {
+        const it = size.get(id)!;
+        pos.set(id, { x: Math.round(x + (width - it.w) / 2), y: Math.round(y) });
+        y += it.h + gapY;
+      }
+      x += width + gapX;
+    });
+    bandY += tallest + gapY * 3;
+  }
   return pos;
 }
 

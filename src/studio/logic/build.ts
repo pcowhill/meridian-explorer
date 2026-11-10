@@ -123,6 +123,8 @@ export interface PlaceOptions {
   /** Explicit edges (entity ids); when omitted known relations are connected automatically. */
   edges?: StudioImport['edges'];
   autoConnect?: boolean;
+  /** Wrap layered layouts after this many columns (fit to the visible canvas). */
+  maxColumns?: number;
   /** Top-left of the new content (default: clear of everything on the board). */
   origin?: Point;
 }
@@ -145,7 +147,7 @@ export function placeEntities(model: Model, nodes: readonly SNode[], edges: read
   let layoutEdges: LayoutEdge[] = [];
   if (opts.edges?.length) layoutEdges = opts.edges.map((e) => ({ source: e.from, target: e.to }));
   else if (layoutMode === 'auto') layoutEdges = liftedForBoard(model, new Set(fresh)).map((l) => edgeDataFromLifted(l)).map((x) => ({ source: x.source, target: x.target }));
-  const rel = layoutMode === 'sequence' ? row(items, 170) : layoutMode === 'grid' ? grid(items) : layered(items, layoutEdges, { gapX: 140, gapY: 32 });
+  const rel = layoutMode === 'sequence' ? row(items, 170) : layoutMode === 'grid' ? grid(items) : layered(items, layoutEdges, { gapX: 120, gapY: 32, maxColumns: opts.maxColumns ?? 4 });
 
   const origin = opts.origin ?? clearOrigin(allRects(nodes));
   const titleH = opts.title ? 76 : 0;
@@ -205,13 +207,14 @@ export function placeEntities(model: Model, nodes: readonly SNode[], edges: read
   }
 
   patch.select = patch.nodes.map((n) => n.id);
-  patch.focus = [...patch.nodes.map((n) => n.id), ...ids.filter((id) => !created.has(id)).map((id) => nodeFor(id)!.id)];
+  // Frame the new content; only when nothing is new, frame the existing instances.
+  patch.focus = patch.nodes.length ? patch.nodes.map((n) => n.id) : ids.map((id) => nodeFor(id)!.id);
   patch.message = fresh.length ? `Added ${fresh.length} component${fresh.length === 1 ? '' : 's'}` : 'Already on the board';
   return patch;
 }
 
 /** A cross-mode request (`sendToStudio`). A single entity that is already on the board is just selected. */
-export function planImport(model: Model, nodes: readonly SNode[], edges: readonly SEdge[], req: StudioImport): Patch {
+export function planImport(model: Model, nodes: readonly SNode[], edges: readonly SEdge[], req: StudioImport, maxColumns?: number): Patch {
   const ids = req.entities.filter((id) => model.has(id));
   const existing = entityInstances(nodes);
   if (ids.length === 1 && existing.has(ids[0])) {
@@ -224,6 +227,7 @@ export function planImport(model: Model, nodes: readonly SNode[], edges: readonl
     note: req.note,
     layout: req.layout ?? 'auto',
     edges: req.edges,
+    maxColumns: req.layout === 'sequence' ? undefined : maxColumns,
     origin: single ? singleSpot(model, nodes, ids[0]) : undefined,
   });
   return patch;
@@ -282,9 +286,10 @@ export function dependencyDiagram(model: Model, nodes: readonly SNode[], entityI
     }
   }
 
-  const size = DEFAULT_SIZE.entity;
-  const gapX = 150;
-  const gapY = 24;
+  // Slightly narrower cards keep a 3–5 column diagram readable on a laptop screen.
+  const size = { w: 210, h: DEFAULT_SIZE.entity.h };
+  const gapX = 120;
+  const gapY = 22;
   const colH = (n: number) => n * size.h + Math.max(0, n - 1) * gapY;
   const tallest = Math.max(size.h, ...levels.left.map((c) => colH(c.length)), ...levels.right.map((c) => colH(c.length)));
   const origin = clearOrigin(allRects(nodes));
@@ -292,12 +297,13 @@ export function dependencyDiagram(model: Model, nodes: readonly SNode[], entityI
   const centreX = origin.x + levels.left.length * (size.w + gapX);
   const mid = top + tallest / 2;
 
-  const centre = entityNode(entityId, { x: centreX, y: mid - size.h / 2 });
+  const card = (id: string, p: Point) => makeNode('entity', p, { entityId: id } satisfies EntityData, size);
+  const centre = card(entityId, { x: centreX, y: mid - size.h / 2 });
   placed.set(entityId, centre);
   const putColumn = (ids: string[], x: number) => {
     let y = mid - colH(ids.length) / 2;
     for (const id of ids) {
-      placed.set(id, entityNode(id, { x, y }));
+      placed.set(id, card(id, { x, y }));
       y += size.h + gapY;
     }
   };

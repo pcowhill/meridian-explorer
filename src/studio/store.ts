@@ -251,12 +251,14 @@ export const useStudio = create<StudioState>()((set, get) => {
         if (patch.focus.length) get().requestFit(patch.focus);
         return;
       }
-      const sel = new Set(patch.select);
+      // Many new nodes: select nothing (the toast says what was added); one new node: select it.
+      const select = patch.nodes.length === 0 ? patch.select : patch.nodes.length === 1 ? [patch.nodes[0].id] : [];
+      const sel = new Set(select);
       commit((s) => ({
         nodes: sortParentsFirst([...selectOnly(opts?.replaceNodes ?? s.nodes, new Set()), ...patch.nodes]).map((n) => (!!n.selected === sel.has(n.id) ? n : { ...n, selected: sel.has(n.id) })),
         edges: [...deselectEdges(s.edges), ...patch.edges],
       }));
-      set({ selectionOrder: patch.select });
+      set({ selectionOrder: select });
       if (patch.focus.length) get().requestFit(patch.focus);
     },
 

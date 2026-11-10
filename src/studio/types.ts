@@ -201,7 +201,7 @@ export type SEdge = Edge<EdgeData, 'studio'>;
 
 /** Default box size per node type. */
 export const DEFAULT_SIZE: Record<StudioNodeType, { w: number; h: number }> = {
-  entity: { w: 232, h: 92 },
+  entity: { w: 216, h: 92 },
   shape: { w: 160, h: 96 },
   text: { w: 240, h: 44 },
   note: { w: 190, h: 150 },

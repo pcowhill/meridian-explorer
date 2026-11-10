@@ -156,3 +156,17 @@ describe('widget helpers', () => {
     expect(lineDiff('a\nb', 'a\nc')).toEqual({ left: ['same', 'removed'], right: ['same', 'added'] });
   });
 });
+
+describe('patch selection policy', () => {
+  it('selects nothing when several nodes are added, the node when one is', () => {
+    const a = makeNode('note', { x: 0, y: 0 }, {});
+    const b = makeNode('note', { x: 300, y: 0 }, {});
+    st().applyPatch({ nodes: [a, b], edges: [], select: [a.id, b.id], focus: [] });
+    expect(selectedNodeIds(st())).toEqual([]);
+    const c = makeNode('note', { x: 600, y: 0 }, {});
+    st().applyPatch({ nodes: [c], edges: [], select: [c.id], focus: [] });
+    expect(selectedNodeIds(st())).toEqual([c.id]);
+    st().undo();
+    expect(st().nodes).toHaveLength(2);
+  });
+});

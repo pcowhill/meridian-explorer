@@ -430,7 +430,7 @@ function EdgeSection({ edge, expanded }: { edge: SEdge; expanded: boolean }) {
             variant="primary"
             icon={<Plus size={12} />}
             data-testid="expand-indirect"
-            className="max-w-full"
+            className="h-auto! max-w-full py-1 text-left whitespace-normal"
             onClick={() => {
               let added: string | null = null;
               useStudio.getState().commit((s) => {
@@ -442,7 +442,7 @@ function EdgeSection({ edge, expanded }: { edge: SEdge; expanded: boolean }) {
               if (added) useStudio.getState().setSelection([added]);
             }}
           >
-            <span className="truncate">Add {model.entity(edge.data.indirect.via)?.name} to the board</span>
+            <span className="break-words">Add {model.entity(edge.data.indirect.via)?.name} to the board</span>
           </Button>
         )}
         {status === 'unverified' && a && b && (

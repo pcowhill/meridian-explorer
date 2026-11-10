@@ -333,3 +333,15 @@ describe('widget bindings', () => {
     expect(node.type).toBe('json');
   });
 });
+
+describe('layout wrapping', () => {
+  it('wraps long chains into bands of at most maxColumns', () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const items = ids.map((id) => ({ id, w: 100, h: 50 }));
+    const edges = ids.slice(1).map((id, i) => ({ source: ids[i], target: id }));
+    const p = layered(items, edges, { maxColumns: 4 });
+    expect(p.get('e')!.y).toBeGreaterThan(p.get('a')!.y);
+    expect(p.get('e')!.x).toBe(p.get('a')!.x);
+    expect(p.get('d')!.x).toBeGreaterThan(p.get('c')!.x);
+  });
+});
