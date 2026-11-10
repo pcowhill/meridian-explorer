@@ -31,7 +31,7 @@
     box-shadow 160ms ease,
     border-color 160ms ease,
     background-color 160ms ease;
-  animation: atlas-appear 220ms ease-out both;
+  animation: atlas-appear 220ms ease-out backwards;
 }
 @keyframes atlas-appear {
   from {
@@ -204,6 +204,7 @@
   border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
 }
 .atlas-region-header {
+  container-type: inline-size;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -233,6 +234,11 @@
   text-transform: uppercase;
   color: var(--tint);
   opacity: 0.85;
+}
+@container (max-width: 360px) {
+  .atlas-region-kind {
+    display: none;
+  }
 }
 .atlas-region-empty {
   position: absolute;

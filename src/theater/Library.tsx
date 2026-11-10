@@ -97,7 +97,7 @@ export function Involving({ currentId, onOpen, className }: { currentId: string 
         <span className="min-w-0 truncate">Workflows involving {selected.name}</span>
       </div>
       {isEndpoint && (
-        <Button size="sm" className="mb-1 w-full justify-start" icon={<Wand2 size={12} />} onClick={() => onOpen(`${TRACE_PREFIX}${selected.id}`)} data-testid="assemble-trace">
+        <Button size="sm" className="mb-1 w-full justify-start! whitespace-nowrap text-[11.5px]!" icon={<Wand2 size={12} />} onClick={() => onOpen(`${TRACE_PREFIX}${selected.id}`)} data-testid="assemble-trace">
           Assemble a trace for this endpoint
         </Button>
       )}

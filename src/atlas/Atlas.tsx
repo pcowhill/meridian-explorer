@@ -207,6 +207,18 @@ function AtlasCanvas({ model, scene }: { model: Model; scene: Scene }) {
     } else go(ensureVisible(r, vp, canvas));
   }, [scene.rects, scene.selectedOnMap, scene.tree, frameKey, width, height, canvas, fitAll, go, rf]);
 
+  // A new feature lens frames the parts that implement it.
+  const lensKey = useApp((s) => s.atlas.lens);
+  const lastLens = useRef(lensKey);
+  useEffect(() => {
+    if (lastLens.current === lensKey || !width) return;
+    lastLens.current = lensKey;
+    if (!scene.lensIds) return;
+    const hits = [...scene.lensIds].map((id) => scene.rects.get(id)).filter((r): r is Rect => !!r);
+    const b = boundsOf(hits);
+    if (b) go(fitRect(b, canvas, { maxZoom: 1.1, padding: 0.12 }));
+  }, [lensKey, scene.lensIds, scene.rects, width, canvas, go]);
+
   // Semantic-zoom font scaling without React renders.
   const onMove = useCallback((_: unknown, vp: Viewport) => {
     wrapRef.current?.style.setProperty('--atlas-inv', String(1 / vp.zoom));
